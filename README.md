@@ -32,7 +32,7 @@ bun run build
 bun run start
 ```
 
-运行后访问 `http://localhost:3000`。
+运行后访问 `http://localhost:30026`。
 
 ### 方式二：Docker
 
@@ -42,7 +42,7 @@ docker compose -f docker-compose.local.yml up -d --build
 
 # 或手动构建
 docker build -t bmcca-canvas .
-docker run --rm -p 3000:3000 bmcca-canvas
+docker run --rm -p 30026:30026 bmcca-canvas
 ```
 
 ## 配置说明
@@ -67,6 +67,8 @@ docker run --rm -p 3000:3000 bmcca-canvas
 - 渠道名称写死为 `BMCCA` + 自定义后缀，不再自动编号。
 - 用户注册和账号配置中合并"用户名"和"显示名称"为单个字段。
 - 首页提示词只展示有封面图的条目，避免 broken image。
+- 默认端口从 3000 改为 30026，避免端口冲突。
+- 默认渠道模型列表只保留 `gpt-image-2`，不再预置视频/文本/音频模型。
 
 ### 提示词库扩展
 
@@ -77,6 +79,7 @@ docker run --rm -p 3000:3000 bmcca-canvas
 
 - 修复 canvas 页面 `useSearchParams` 未用 Suspense 包裹导致构建失败。
 - 移除旧 favicon.ico，解决浏览器标签栏图标不更新问题。
+- 修复 youmind-nano-banana-pro 提示词封面图显示徽章而非效果图的问题。
 
 ## 文档
 

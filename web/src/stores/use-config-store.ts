@@ -75,14 +75,14 @@ export const defaultConfig: AiConfig = {
             baseUrl: LOCKED_BASE_URL,
             apiKey: "",
             apiFormat: "openai",
-            models: ["gpt-image-2", "grok-imagine-video", "gpt-5.5", "gpt-4o-mini-tts"],
+            models: ["gpt-image-2"],
         },
     ],
     model: "default::gpt-image-2",
     imageModel: "default::gpt-image-2",
-    videoModel: "default::grok-imagine-video",
-    textModel: "default::gpt-5.5",
-    audioModel: "default::gpt-4o-mini-tts",
+    videoModel: "default::gpt-image-2",
+    textModel: "default::gpt-image-2",
+    audioModel: "default::gpt-image-2",
     audioVoice: "alloy",
     audioFormat: "mp3",
     audioSpeed: "1",
@@ -92,11 +92,11 @@ export const defaultConfig: AiConfig = {
     videoGenerateAudio: "true",
     videoWatermark: "false",
     systemPrompt: "",
-    models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+    models: ["default::gpt-image-2"],
     imageModels: ["default::gpt-image-2"],
-    videoModels: ["default::grok-imagine-video"],
-    textModels: ["default::gpt-5.5"],
-    audioModels: ["default::gpt-4o-mini-tts"],
+    videoModels: ["default::gpt-image-2"],
+    textModels: ["default::gpt-image-2"],
+    audioModels: ["default::gpt-image-2"],
     quality: "auto",
     size: "1:1",
     count: "1",
@@ -218,7 +218,7 @@ export const useConfigStore = create<ConfigStore>()(
                         channels,
                         models,
                         imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
-                        videoModel: normalizeModelOptionValue(config.videoModel || "grok-imagine-video", channels),
+                        videoModel: normalizeModelOptionValue(config.videoModel || defaultConfig.videoModel, channels),
                         textModel: normalizeModelOptionValue(config.textModel || config.model, channels),
                         audioModel: normalizeModelOptionValue(config.audioModel || defaultConfig.audioModel, channels),
                         audioVoice: config.audioVoice || defaultConfig.audioVoice,
@@ -331,7 +331,8 @@ function normalizeChannels(config: AiConfig) {
             ...channel,
             id: channel.id || (index === 0 ? "default" : `channel-${index + 1}`),
             name: channel.name || "BMCCA",
-            models: uniqueRawModels(channel.models || []),
+            // 默认渠道强制只保留 gpt-image-2，忽略浏览器里持久化的旧模型
+            models: (channel.id === "default" || index === 0) ? ["gpt-image-2"] : uniqueRawModels(channel.models || []),
         }),
     );
     if (!channels.length) {
@@ -353,7 +354,7 @@ function normalizeChannels(config: AiConfig) {
             }),
         );
     }
-    return channels.map((channel) => ({ ...channel, baseUrl: normalizeBaseUrl(channel.baseUrl), models: uniqueRawModels(channel.models) }));
+    return normalizeChannelList(channels);
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
@@ -386,8 +387,16 @@ export function normalizeBaseUrl(baseUrl: string) {
 
 function normalizeConfigValue<K extends keyof AiConfig>(key: K, value: AiConfig[K]) {
     if (key === "baseUrl") return normalizeBaseUrl(String(value)) as AiConfig[K];
-    if (key === "channels") return (value as ModelChannel[]).map((channel) => ({ ...channel, baseUrl: normalizeBaseUrl(channel.baseUrl) })) as AiConfig[K];
+    if (key === "channels") return normalizeChannelList(value as ModelChannel[]) as AiConfig[K];
     return value;
+}
+
+function normalizeChannelList(channels: ModelChannel[]) {
+    return (channels || []).map((channel, index) => ({
+        ...channel,
+        baseUrl: normalizeBaseUrl(channel.baseUrl),
+        models: channel.id === "default" || index === 0 ? ["gpt-image-2"] : uniqueRawModels(channel.models),
+    }));
 }
 
 function normalizeArkPlanBaseUrl(baseUrl: string) {

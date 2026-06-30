@@ -10,10 +10,13 @@ description: 当前版本已实现但仍需人工验证的变更项
 - 配置与用户偏好：每个模型渠道新增 OpenAI / Gemini 调用格式选择，默认 OpenAI，切换默认格式时同步更新默认 Base URL；渠道 Tab 增加紧凑醒目的提醒，说明模型是否可选需要到“模型”Tab 选择。
 - Gemini 调用格式：支持拉取 Gemini 模型列表，并用于文本问答、在线 Agent 工具调用、基础生图和图生图请求。
 - 音频和视频生成：选择 Gemini 调用格式时先给出不支持提示，仍需使用 OpenAI 兼容渠道。
-- ????????? `songtianlun/awesome-prompts` ? `Danielhan626/best-gpt-image-2-prompts-digest` ?? GitHub ???????? `/prompts` ????????????
-- ?????????????? `EvoLinkAI/awesome-gpt-image-2-API-and-Prompts` ?????????????????
-- ????????????????????????????????????????????
-- ??????????? `YouMind-OpenLab/ai-image-prompts-skill`?? `references/manifest.json` ?????? JSON ???????????????????
+- 提示词库：接入 `songtianlun/awesome-prompts` 与 `Danielhan626/best-gpt-image-2-prompts-digest` 作为 GitHub 提示词源，可在 `/prompts` 页面按分类浏览。
+- 提示词库：移除 `EvoLinkAI/awesome-gpt-image-2-API-and-Prompts` 源，避免保留已经不可正常拉取的重复来源。
+- 提示词库：对应页面新增提示词总量和更新时间展示，便于确认当前加载规模和刷新时间。
+- 提示词库：全量接入 `YouMind-OpenLab/ai-image-prompts-skill`，按 `references/manifest.json` 分类 JSON 解析并合并展示。
 - 配置与用户偏好：Base URL 默认值、保存值和请求拼接会自动去除结尾 `/`，避免界面展示和接口请求出现多余斜杠。
 - 配置与用户偏好：页面加载时会自动清理旧本地配置里的 Base URL 尾斜杠；模型拉取改由本应用 `/api/models` 服务端代理，避免浏览器直连外部 API 的 CORS 或 HTML 首页响应影响。
 - AI 图片生成：OpenAI 文生图和图生图/参考图编辑改由本应用 `/api/ai` 临时转发，减少浏览器直连外部 API 的 CORS 或 HTML 首页响应导致的“请求失败”。
+
+- 配置与生成：默认渠道模型列表只保留 `gpt-image-2`；修复 `youmind-nano-banana-pro` 提示词分类封面误显示 Language/License/Stars 等仓库徽章的问题。
+- 提示词库图片：提示词卡片和详情页改用统一图片组件，图片为空或加载失败时显示占位；提示词源解析补充 HTML 图片、过滤徽章/封面/已失效源图片，并优先使用可展示的生成结果图。

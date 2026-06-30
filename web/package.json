@@ -4,9 +4,9 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "next dev --webpack -H 0.0.0.0 -p 3000",
+        "dev": "next dev --webpack -H 0.0.0.0 -p 30026",
         "build": "next build",
-        "start": "next start",
+        "start": "next start -p 30026",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
     },

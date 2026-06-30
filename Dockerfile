@@ -22,8 +22,8 @@ COPY --from=web-build /app/web/.next/standalone /app/web
 COPY --from=web-build /app/web/.next/static /app/web/.next/static
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
+ENV PORT=30026
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 3000
-CMD ["sh", "-c", "cd /app/web && PORT=3000 node server.js"]
+EXPOSE 30026
+CMD ["sh", "-c", "cd /app/web && PORT=30026 node server.js"]

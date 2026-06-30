@@ -111,7 +111,7 @@ async function buildAwesomeGptImagePrompts() {
             const title = firstMatch(block, /^###\s+(.+)$/m).replace(/\[([^\]]+)]\([^)]+\)/g, "$1").trim();
             const prompt = firstMatch(block, /\*\*提示词:\*\*\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
             if (!title || !prompt) continue;
-            const images = extractMarkdownImages(awesomeGptImageRawBase, block);
+            const images = promptImages(awesomeGptImageRawBase, block);
             items.push(defaultPrompt(`awesome-gpt-image-${leftPad(items.length + 1)}`, title, prompt, images[0] || "", tags, markdownPreview(images)));
         }
     }
@@ -125,7 +125,7 @@ async function buildAwesomeGpt4oImagePrompts() {
         const title = firstMatch(block, /^###\s+(.+)$/m).trim();
         const prompt = firstMatch(block, /- \*\*提示词文本：\*\*\s*`(.*?)`/s).trim();
         if (!title || !prompt) continue;
-        const images = extractMarkdownImages(awesomeGpt4oImagePromptsBase, block);
+        const images = promptImages(awesomeGpt4oImagePromptsBase, block);
         items.push(defaultPrompt(`awesome-gpt4o-image-prompts-${leftPad(items.length + 1)}`, title, prompt, images[0] || "", ["gpt4o"], markdownPreview(images)));
     }
     return items;
@@ -138,7 +138,7 @@ async function buildYouMindPrompts(baseUrl: string, idPrefix: string, modelTag: 
         const title = firstMatch(block, /^###\s+No\.\s*\d+:\s*(.+)$/m).trim();
         const prompt = firstMatch(block, /#### .*?提示词\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
         if (!title || !prompt) continue;
-        const images = extractMarkdownImages(baseUrl, block);
+        const images = promptImages(baseUrl, block);
         items.push(defaultPrompt(`${idPrefix}-${leftPad(items.length + 1)}`, title, prompt, images[0] || "", youMindTags(title, modelTag), markdownPreview(images)));
     }
     return items;
@@ -151,7 +151,7 @@ async function buildDavidWuGptImage2Prompts() {
             const title = (item.title_cn || item.title_en || "").trim();
             const prompt = (item.prompt || "").trim();
             if (!title || !prompt) return null;
-            const image = absoluteImage(davidWuGptImage2RawBase, item.image || "");
+            const image = normalizePromptImage(davidWuGptImage2RawBase, item.image || "");
             const preview = [item.title_en, item.note, image ? `![](${image})` : ""].filter(Boolean).join("\n\n");
             return defaultPrompt(`davidwu-gpt-image2-prompts-${leftPad(item.id || index + 1)}`, title, prompt, image, davidWuTags(item), preview);
         })
@@ -171,43 +171,35 @@ async function buildSongtianlunPrompts() {
         const entry = files[index];
         for (const block of splitBeforeHeading(markdown, "### ")) {
             const title = firstMatch(block, /^###\s+(.+)$/m).replace(/\[([^\]]+)]\([^)]+\)/g, "$1").trim();
-            const prompt = firstMatch(block, /\*\*提示词[:：]?\*\*\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
+            const prompt = firstMatch(block, /\*\*(?:\u63d0\u793a\u8bcd|Prompt)[:\uff1a]?\*\*\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
             if (!title || !prompt) continue;
-            const rawImage = firstMatch(block, /<img\s+src="([^"]+)"/);
-            if (!rawImage) continue;
-            const images = extractHtmlImages(entry.imageBase, block);
-            const coverUrl = songtianlunImage(rawImage);
-            items.push(defaultPrompt(`songtianlun-${leftPad(items.length + 1)}`, title, prompt, coverUrl, entry.tags, markdownPreview(images.length ? images : [coverUrl])));
+            const images = promptImages(entry.imageBase, block);
+            if (!images.length) continue;
+            const coverUrl = images.find((image) => /\/output\.(?:png|jpe?g|webp|gif)(?:\?|$)/i.test(image)) || images[0];
+            items.push(defaultPrompt(`songtianlun-${leftPad(items.length + 1)}`, title, prompt, coverUrl, entry.tags, markdownPreview(images)));
         }
     });
     return items;
 }
 
-function songtianlunImage(src: string) {
-    if (/^https?:\/\//i.test(src)) return src;
-    if (src.startsWith("/images/")) return `${songtianlunRawBase}/docs${src}`;
-    return `${songtianlunRawBase}/${src.replace(/^\.?\//, "")}`;
-}
-
 async function buildDanielGptImage2DigestPrompts() {
     const markdown = await fetchText(danielGptImage2DigestRawBase, "source/README_zh-CN.md");
-    const details = markdown.slice(Math.max(0, markdown.indexOf("## 提示词详情")));
     const items: Omit<Prompt, "category" | "githubUrl">[] = [];
     let activeCategory = "";
-    for (const block of splitBeforeHeading(details, "### ")) {
+    for (const block of splitBeforeHeading(markdown, "### ")) {
         const nextCategory = firstMatch(block, /^##\s+(.+)$/m).trim();
-        if (nextCategory && nextCategory !== "提示词详情") activeCategory = nextCategory;
+        if (nextCategory && !/(?:prompt|\u63d0\u793a\u8bcd)/i.test(nextCategory)) activeCategory = nextCategory;
         const heading = firstMatch(block, /^###\s+(.+)$/m).trim();
         if (!heading) continue;
         if (!/^Case\s+\d+:/i.test(heading)) continue;
         const [, caseNumber, title] = heading.match(/^Case\s+(\d+):\s*(.+)$/i) || [];
-        const prompt = firstMatch(block, /\*\*提示词[:：]?\*\*\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
-        const rawImage = firstMatch(block, /<img\s+src="([^"]+)"/);
-        if (!caseNumber || !title || !prompt || !rawImage) continue;
-        const coverUrl = absoluteImage(`${danielGptImage2DigestRawBase}/source`, rawImage);
+        const prompt = firstMatch(block, /```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
+        if (!caseNumber || !title || !prompt) continue;
+        const images = promptImages(`${danielGptImage2DigestRawBase}/source`, block);
+        const coverUrl = images[0] || "";
         const sourceUrl = firstMatch(block, /^###\s+Case\s+\d+:\s+\[[^\]]+]\(([^)]+)\)/m);
-        const author = firstMatch(block, /作者\s+\[@([^\]]+)]/);
-        const preview = [author ? `作者：${author}` : "", sourceUrl ? `[原文链接](${sourceUrl})` : "", coverUrl ? `![](${coverUrl})` : ""].filter(Boolean).join("\n\n");
+        const author = firstMatch(block, /\[@([^\]]+)]/);
+        const preview = [author ? `Author: ${author}` : "", sourceUrl ? `[Source](${sourceUrl})` : "", markdownPreview(images)].filter(Boolean).join("\n\n");
         items.push(defaultPrompt(`danielhan-gpt-image-2-digest-${leftPad(Number(caseNumber))}`, cleanDanielGptImage2Title(title), prompt, coverUrl, danielGptImage2Tags(activeCategory, author), preview));
     }
     return items;
@@ -246,7 +238,7 @@ async function buildYouMindAiImageSkillPrompts() {
             const uniqueKey = String(item.id || prompt);
             if (seen.has(uniqueKey)) return;
             seen.add(uniqueKey);
-            const images = (item.sourceMedia || []).filter(Boolean);
+            const images = (item.sourceMedia || []).map((image) => normalizePromptImage(youMindAiImageSkillRawBase, image)).filter(Boolean);
             const tags = [category.title || category.slug || "", item.needReferenceImages ? "需要参考图" : ""].filter(Boolean);
             const preview = [item.description, markdownPreview(images)].filter(Boolean).join("\n\n");
             items.push(defaultPrompt(`youmind-ai-image-prompts-skill-${category.slug}-${leftPad(Number(item.id) || index + 1)}`, title, prompt, images[0] || "", tags, preview));
@@ -256,7 +248,7 @@ async function buildYouMindAiImageSkillPrompts() {
 }
 
 function cleanDanielGptImage2Title(title: string) {
-    return title.replace(/\[([^\]]+)]\([^)]+\)/g, "$1").replace(/\s*\(作者.+$/, "").trim();
+    return title.replace(/\[([^\]]+)]\([^)]+\)/g, "$1").replace(/\s*(?:\((?:\u4f5c\u8005|Author)[^)]+\)|\uff08(?:\u4f5c\u8005|Author)[^\uff09]+\uff09)\s*$/i, "").trim();
 }
 
 function danielGptImage2Tags(category: string, author: string) {
@@ -295,12 +287,38 @@ function firstMatch(value: string, pattern: RegExp) {
     return pattern.exec(value)?.[1] || "";
 }
 
+function promptImages(baseUrl: string, markdown: string) {
+    return Array.from(new Set([...extractHtmlImages(baseUrl, markdown), ...extractMarkdownImages(baseUrl, markdown)].filter(Boolean)));
+}
+
 function extractMarkdownImages(baseUrl: string, markdown: string) {
-    return Array.from(markdown.matchAll(/!\[[^\]]*]\(([^)]+)\)/g), (match) => absoluteImage(baseUrl, match[1])).filter(Boolean);
+    return Array.from(markdown.matchAll(/!\[([^\]]*)]\(([^)]+)\)/g), (match) => normalizePromptImage(baseUrl, match[2], match[1])).filter(Boolean);
 }
 
 function extractHtmlImages(baseUrl: string, markdown: string) {
-    return Array.from(markdown.matchAll(/<img\s+[^>]*src="([^"]+)"/g), (match) => absoluteImage(baseUrl, match[1])).filter(Boolean);
+    return Array.from(markdown.matchAll(/<img\s+[^>]*src=(?:"([^"]+)"|'([^']+)')[^>]*>/gi), (match) => {
+        const tag = match[0];
+        const altMatch = /alt=(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+        const alt = altMatch?.[1] || altMatch?.[2] || "";
+        return normalizePromptImage(baseUrl, match[1] || match[2] || "", alt);
+    }).filter(Boolean);
+}
+
+function normalizePromptImage(baseUrl: string, image: string, alt = "") {
+    const url = absoluteImage(baseUrl, image.trim());
+    if (!url) return "";
+    return isPromptPreviewImage(url, alt) ? url : "";
+}
+
+function isPromptPreviewImage(url: string, alt = "") {
+    const value = `${url} ${alt}`.toLowerCase();
+    if (/img\.shields\.io|awesome\.re\/badge|github\.com\/.+\/actions\/workflows\/.+\/badge|api\.star-history\.com/.test(value)) return false;
+    if (/marketing-assets\.youmind\.com\/campaigns|prompts-cover|og-hq/.test(value)) return false;
+    if (/best-gpt-image-2-prompts-digest\/main\/source\/images\//.test(value)) return false;
+    if (/pbs\.twimg\.com\/media\/g7nret(?:gawaafo6z|yayaajpjd)/.test(value)) return false;
+    if (/awesome-nano-banana-pro-images\/case-\d+\/input\.(?:png|jpe?g|webp)(?:\?|$)/.test(value)) return false;
+    if (/language-|license|stars|prs welcome|update readme|cover/.test(alt.toLowerCase())) return false;
+    return true;
 }
 
 function absoluteImage(baseUrl: string, image: string) {

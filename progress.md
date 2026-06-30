@@ -293,3 +293,47 @@
   - `progress.md`：追加本轮修复和验证记录。
 - Existing pre-task changes left untouched: `web/next-env.d.ts`、`web/src/app/(user)/canvas/page.tsx` 以及上一轮登录、提示词源、页面统计和配置相关未提交文件。
 - Rollback: 可执行 `git checkout -- web/src/services/api/image.ts README.md docs/content/docs/overview/features.mdx docs/content/docs/overview/quick-start.mdx docs/content/docs/backend/local-development.mdx docs/index.md docs/content/docs/progress/pending-test.mdx progress.md` 并删除 `web/src/app/api/ai/route.ts` 回退本轮图片生成代理；如需保留历史进度记录，请只回退代码和文档文件。
+
+## 2026-06-30 - Task: 修复默认模型和 YouMind 封面
+### What was done
+- 默认渠道模型列表只保留 `gpt-image-2`，避免默认渠道继续出现其他模型。
+- 将默认模型选择兜底调整为 `default::gpt-image-2`，确保默认渠道可直接使用。
+- 修复 YouMind 提示词源封面解析，过滤 `Language`、`License`、`Stars`、README 封面和 Star History 等仓库装饰图。
+
+### Testing
+- `python` 抽样检查 `YouMind-OpenLab/awesome-nano-banana-pro-prompts` README 的 8 条图片 URL：有效封面来自 `cms-assets.youmind.com`，不再使用 `img.shields.io` 等徽章图。
+- `cd web && bun run build`：通过，Next.js 生产构建成功。
+
+### Notes
+- Changed files:
+  - `web/src/stores/use-config-store.ts`：默认渠道模型列表和默认选中模型收敛到 `gpt-image-2`。
+  - `web/src/components/layout/app-config-modal.tsx`：默认渠道模型展示与保存保持一致。
+  - `web/src/app/api/prompts/route.ts`：YouMind 图片解析过滤仓库装饰图。
+  - `docs/content/docs/progress/pending-test.mdx`：记录本轮待人工确认事项。
+  - `progress.md`：追加本轮实现和验证记录。
+- Existing pre-task changes left untouched: 登录、Base URL、图片生成代理和 UI 相关既有未提交改动未回滚。
+- Rollback: 可执行 `git checkout -- web/src/stores/use-config-store.ts web/src/components/layout/app-config-modal.tsx web/src/app/api/prompts/route.ts docs/content/docs/progress/pending-test.mdx progress.md` 回退本轮默认模型和 YouMind 封面修复；如需保留历史进度记录，请只回退代码和待测文件。
+
+## 2026-06-30 - Task: 修复提示词库分类图片显示
+### What was done
+- 提示词库卡片和详情页改用统一图片组件，图片为空或加载失败时显示轻量占位，不再出现破图图标或异常大字占位。
+- 提示词源解析新增 HTML `<img>` 支持，过滤徽章、仓库封面、已确认失效图片和无实际图片文件的源路径。
+- `songtianlun/awesome-prompts` 分类优先使用 `output` 结果图作为封面，避免部分 `input.jpg` 失效导致卡片破图。
+- `Danielhan626/best-gpt-image-2-prompts-digest` 源仓库未提供实际图片文件，保留提示词内容，封面统一走占位展示。
+
+### Testing
+- `cd web && bun run build`：通过，Next.js 生产构建成功。
+- 重启 30026 端口服务后，注册临时账号并分页拉取 `/api/prompts`：共 15302 条提示词；`awesome-gpt-image`、`songtianlun-awesome-prompts`、`youmind-ai-image-prompts-skill` 等主要分类可返回有效封面；临时账号已清理。
+- 全量 HTTP 图片审查：15062 个非空封面 URL 检查后无 404/ERR；剩余 112 条为空封面，均会由前端占位显示，明细已写入 `data/prompt-image-audit/cover-summary-final.json` 和 `data/prompt-image-audit/bad-cover-records-final.csv`。
+- 当前服务已按最新构建重启在 `http://127.0.0.1:30026`，`/api/auth/session` 返回 200。
+
+### Notes
+- Changed files:
+  - `web/src/app/api/prompts/route.ts`：补充提示词图片解析、过滤失效图片源，并调整部分分类封面选择策略。
+  - `web/src/components/prompts/prompt-image.tsx`：新增统一提示词图片展示和失败占位组件。
+  - `web/src/components/prompts/prompt-card.tsx`：卡片封面改用统一图片组件。
+  - `web/src/components/prompts/prompt-detail-dialog.tsx`：详情页封面改用统一图片组件。
+  - `docs/content/docs/progress/pending-test.mdx`：记录本轮提示词图片显示待人工确认事项。
+  - `progress.md`：追加本轮实现和验证记录。
+- Existing pre-task changes left untouched: 端口、Base URL、模型列表、图片生成代理和默认模型相关既有未提交改动未回滚。
+- Rollback: 可执行 `git checkout -- web/src/app/api/prompts/route.ts web/src/components/prompts/prompt-card.tsx web/src/components/prompts/prompt-detail-dialog.tsx docs/content/docs/progress/pending-test.mdx progress.md` 并删除 `web/src/components/prompts/prompt-image.tsx` 回退本轮图片显示修复；如需保留历史进度记录，请只回退代码和待测文件。

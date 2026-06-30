@@ -442,18 +442,19 @@ export function AppConfigModal() {
 }
 
 function withChannels(config: AiConfig, channels: ModelChannel[]): AiConfig {
-    const models = modelOptionsFromChannels(channels);
+    const normalizedChannels = channels.map((channel, index) => ({ ...channel, models: channel.id === "default" || index === 0 ? ["gpt-image-2"] : uniqueModels(channel.models) }));
+    const models = modelOptionsFromChannels(normalizedChannels);
     const imageModels = keepOrSuggest(config.imageModels, filterModelsByCapability(models, "image"), models);
     const videoModels = keepOrSuggest(config.videoModels, filterModelsByCapability(models, "video"), models);
     const textModels = keepOrSuggest(config.textModels, filterModelsByCapability(models, "text"), models);
     const audioModels = keepOrSuggest(config.audioModels, filterModelsByCapability(models, "audio"), models);
     return {
         ...config,
-        channels,
+        channels: normalizedChannels,
         models,
-        baseUrl: channels[0]?.baseUrl || config.baseUrl,
-        apiKey: channels[0]?.apiKey || config.apiKey,
-        apiFormat: channels[0]?.apiFormat || config.apiFormat,
+        baseUrl: normalizedChannels[0]?.baseUrl || config.baseUrl,
+        apiKey: normalizedChannels[0]?.apiKey || config.apiKey,
+        apiFormat: normalizedChannels[0]?.apiFormat || config.apiFormat,
         imageModels,
         videoModels,
         textModels,
