@@ -22,22 +22,25 @@ type PromptCategory = {
     build: () => Promise<Omit<Prompt, "category" | "githubUrl">[]>;
 };
 
-const gptImage2RawBase = "https://raw.githubusercontent.com/EvoLinkAI/awesome-gpt-image-2-API-and-Prompts/main";
 const awesomeGptImageRawBase = "https://raw.githubusercontent.com/ZeroLu/awesome-gpt-image/main";
 const awesomeGpt4oImagePromptsBase = "https://raw.githubusercontent.com/ImgEdify/Awesome-GPT4o-Image-Prompts/main";
 const youMindGptImage2RawBase = "https://raw.githubusercontent.com/YouMind-OpenLab/awesome-gpt-image-2/main";
 const youMindNanoBananaProRawBase = "https://raw.githubusercontent.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts/main";
 const davidWuGptImage2RawBase = "https://raw.githubusercontent.com/davidwuw0811-boop/awesome-gpt-image2-prompts/main";
-const gptImage2CaseFiles = ["README.md", "cases/ad-creative.md", "cases/character.md", "cases/comparison.md", "cases/ecommerce.md", "cases/portrait.md", "cases/poster.md", "cases/ui.md"];
+const songtianlunRawBase = "https://raw.githubusercontent.com/songtianlun/awesome-prompts/main";
+const danielGptImage2DigestRawBase = "https://raw.githubusercontent.com/Danielhan626/best-gpt-image-2-prompts-digest/main";
+const youMindAiImageSkillRawBase = "https://raw.githubusercontent.com/YouMind-OpenLab/ai-image-prompts-skill/main";
 const cacheTtlMs = 1000 * 60 * 60;
 
 const categories: PromptCategory[] = [
-    { category: "gpt-image-2-prompts", githubUrl: "https://github.com/EvoLinkAI/awesome-gpt-image-2-API-and-Prompts", build: buildGptImage2Prompts },
     { category: "awesome-gpt-image", githubUrl: "https://github.com/ZeroLu/awesome-gpt-image", build: buildAwesomeGptImagePrompts },
     { category: "awesome-gpt4o-image-prompts", githubUrl: "https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts", build: buildAwesomeGpt4oImagePrompts },
     { category: "youmind-gpt-image-2", githubUrl: "https://github.com/YouMind-OpenLab/awesome-gpt-image-2", build: () => buildYouMindPrompts(youMindGptImage2RawBase, "youmind-gpt-image-2", "gpt-image-2") },
     { category: "youmind-nano-banana-pro", githubUrl: "https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts", build: () => buildYouMindPrompts(youMindNanoBananaProRawBase, "youmind-nano-banana-pro", "nano-banana-pro") },
     { category: "davidwu-gpt-image2-prompts", githubUrl: "https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts", build: buildDavidWuGptImage2Prompts },
+    { category: "songtianlun-awesome-prompts", githubUrl: "https://github.com/songtianlun/awesome-prompts", build: buildSongtianlunPrompts },
+    { category: "danielhan-gpt-image-2-digest", githubUrl: "https://github.com/Danielhan626/best-gpt-image-2-prompts-digest", build: buildDanielGptImage2DigestPrompts },
+    { category: "youmind-ai-image-prompts-skill", githubUrl: "https://github.com/YouMind-OpenLab/ai-image-prompts-skill", build: buildYouMindAiImageSkillPrompts },
 ];
 
 let memoryCache: { items: Prompt[]; fetchedAt: number } | null = null;
@@ -58,7 +61,10 @@ export async function GET(request: NextRequest) {
         items: filtered.slice((page - 1) * pageSize, page * pageSize),
         tags: collectTags(withoutTagFilter),
         categories: categories.map((item) => item.category),
+        fetchedAt: memoryCache?.fetchedAt || Date.now(),
+        sourceCount: categories.length,
         total: filtered.length,
+        totalAll: items.length,
     });
 }
 
@@ -94,27 +100,6 @@ function filterPrompts(items: Prompt[], options: { keyword: string; category: st
         if (!options.keyword) return true;
         return [item.title, item.prompt, item.category, ...item.tags].join(" ").toLowerCase().includes(options.keyword);
     });
-}
-
-async function buildGptImage2Prompts() {
-    const data = (await fetchJson<{ records?: Array<{ title?: string; tweet_url?: string; image_dir?: string; category?: string; added_at?: string }> }>(gptImage2RawBase, "data/ingested_tweets.json")).records || [];
-    const cases = new Map<string, string>();
-    const markdowns = await Promise.all(gptImage2CaseFiles.map((file) => fetchText(gptImage2RawBase, file)));
-    markdowns.forEach((markdown) => collectGptImage2Cases(cases, markdown));
-    const items: Omit<Prompt, "category" | "githubUrl">[] = [];
-    data.forEach((item) => {
-        const prompt = cases.get(item.tweet_url || "");
-        if (!item.title || !prompt || !item.image_dir) return;
-        const image = `${gptImage2RawBase}/${item.image_dir}/output.jpg`;
-        items.push({ id: `gpt-image-2-prompts-${leftPad(items.length + 1)}`, title: item.title, coverUrl: image, prompt, tags: tagsFromCategory(item.category || ""), preview: markdownPreview([image]), createdAt: item.added_at || "", updatedAt: item.added_at || "" });
-    });
-    return items;
-}
-
-function collectGptImage2Cases(cases: Map<string, string>, markdown: string) {
-    for (const match of markdown.matchAll(/### Case \d+: \[[^\]]+]\(([^)]+)\).*?\*\*Prompt:\*\*\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/gs)) {
-        cases.set(match[1], match[2].trim());
-    }
 }
 
 async function buildAwesomeGptImagePrompts() {
@@ -173,6 +158,111 @@ async function buildDavidWuGptImage2Prompts() {
         .filter((item): item is Omit<Prompt, "category" | "githubUrl"> => Boolean(item));
 }
 
+async function buildSongtianlunPrompts() {
+    const files = [
+        { file: "docs/text-to-image/gpt/gpt-image-1.md", tags: ["gpt-image-1"], imageBase: `${songtianlunRawBase}/docs` },
+        { file: "docs/text-to-image/gpt/awesome-gpt4o-images.md", tags: ["gpt-4o"], imageBase: `${songtianlunRawBase}/docs` },
+        { file: "docs/text-to-image/nano-banana/awesome-nano-banana-images.md", tags: ["nano-banana"], imageBase: `${songtianlunRawBase}/docs` },
+        { file: "docs/text-to-image/nano-banana/awesome-nano-banana-pro-images.md", tags: ["nano-banana-pro"], imageBase: `${songtianlunRawBase}/docs` },
+    ];
+    const markdowns = await Promise.all(files.map((entry) => fetchText(songtianlunRawBase, entry.file)));
+    const items: Omit<Prompt, "category" | "githubUrl">[] = [];
+    markdowns.forEach((markdown, index) => {
+        const entry = files[index];
+        for (const block of splitBeforeHeading(markdown, "### ")) {
+            const title = firstMatch(block, /^###\s+(.+)$/m).replace(/\[([^\]]+)]\([^)]+\)/g, "$1").trim();
+            const prompt = firstMatch(block, /\*\*提示词[:：]?\*\*\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
+            if (!title || !prompt) continue;
+            const rawImage = firstMatch(block, /<img\s+src="([^"]+)"/);
+            if (!rawImage) continue;
+            const images = extractHtmlImages(entry.imageBase, block);
+            const coverUrl = songtianlunImage(rawImage);
+            items.push(defaultPrompt(`songtianlun-${leftPad(items.length + 1)}`, title, prompt, coverUrl, entry.tags, markdownPreview(images.length ? images : [coverUrl])));
+        }
+    });
+    return items;
+}
+
+function songtianlunImage(src: string) {
+    if (/^https?:\/\//i.test(src)) return src;
+    if (src.startsWith("/images/")) return `${songtianlunRawBase}/docs${src}`;
+    return `${songtianlunRawBase}/${src.replace(/^\.?\//, "")}`;
+}
+
+async function buildDanielGptImage2DigestPrompts() {
+    const markdown = await fetchText(danielGptImage2DigestRawBase, "source/README_zh-CN.md");
+    const details = markdown.slice(Math.max(0, markdown.indexOf("## 提示词详情")));
+    const items: Omit<Prompt, "category" | "githubUrl">[] = [];
+    let activeCategory = "";
+    for (const block of splitBeforeHeading(details, "### ")) {
+        const nextCategory = firstMatch(block, /^##\s+(.+)$/m).trim();
+        if (nextCategory && nextCategory !== "提示词详情") activeCategory = nextCategory;
+        const heading = firstMatch(block, /^###\s+(.+)$/m).trim();
+        if (!heading) continue;
+        if (!/^Case\s+\d+:/i.test(heading)) continue;
+        const [, caseNumber, title] = heading.match(/^Case\s+(\d+):\s*(.+)$/i) || [];
+        const prompt = firstMatch(block, /\*\*提示词[:：]?\*\*\s*\r?\n\s*```[\w-]*\r?\n(.*?)\r?\n```/s).trim();
+        const rawImage = firstMatch(block, /<img\s+src="([^"]+)"/);
+        if (!caseNumber || !title || !prompt || !rawImage) continue;
+        const coverUrl = absoluteImage(`${danielGptImage2DigestRawBase}/source`, rawImage);
+        const sourceUrl = firstMatch(block, /^###\s+Case\s+\d+:\s+\[[^\]]+]\(([^)]+)\)/m);
+        const author = firstMatch(block, /作者\s+\[@([^\]]+)]/);
+        const preview = [author ? `作者：${author}` : "", sourceUrl ? `[原文链接](${sourceUrl})` : "", coverUrl ? `![](${coverUrl})` : ""].filter(Boolean).join("\n\n");
+        items.push(defaultPrompt(`danielhan-gpt-image-2-digest-${leftPad(Number(caseNumber))}`, cleanDanielGptImage2Title(title), prompt, coverUrl, danielGptImage2Tags(activeCategory, author), preview));
+    }
+    return items;
+}
+
+type YouMindAiImageSkillManifest = {
+    updatedAt?: string;
+    categories?: Array<{ slug?: string; title?: string; file?: string; count?: number }>;
+};
+
+type YouMindAiImageSkillItem = {
+    id?: number | string;
+    content?: string;
+    title?: string;
+    description?: string;
+    sourceMedia?: string[];
+    needReferenceImages?: boolean;
+};
+
+async function buildYouMindAiImageSkillPrompts() {
+    const manifest = await fetchJson<YouMindAiImageSkillManifest>(youMindAiImageSkillRawBase, "references/manifest.json");
+    const categories = (manifest.categories || []).filter((item) => item.slug && item.file);
+    const data = await Promise.all(
+        categories.map(async (category) => ({
+            category,
+            items: await fetchJson<YouMindAiImageSkillItem[]>(youMindAiImageSkillRawBase, `references/${category.file}`),
+        })),
+    );
+    const seen = new Set<string>();
+    const items: Omit<Prompt, "category" | "githubUrl">[] = [];
+    data.forEach(({ category, items: categoryItems }) => {
+        categoryItems.forEach((item, index) => {
+            const title = (item.title || "").trim();
+            const prompt = (item.content || "").trim();
+            if (!title || !prompt) return;
+            const uniqueKey = String(item.id || prompt);
+            if (seen.has(uniqueKey)) return;
+            seen.add(uniqueKey);
+            const images = (item.sourceMedia || []).filter(Boolean);
+            const tags = [category.title || category.slug || "", item.needReferenceImages ? "需要参考图" : ""].filter(Boolean);
+            const preview = [item.description, markdownPreview(images)].filter(Boolean).join("\n\n");
+            items.push(defaultPrompt(`youmind-ai-image-prompts-skill-${category.slug}-${leftPad(Number(item.id) || index + 1)}`, title, prompt, images[0] || "", tags, preview));
+        });
+    });
+    return items;
+}
+
+function cleanDanielGptImage2Title(title: string) {
+    return title.replace(/\[([^\]]+)]\([^)]+\)/g, "$1").replace(/\s*\(作者.+$/, "").trim();
+}
+
+function danielGptImage2Tags(category: string, author: string) {
+    return splitTags([category, author, "gpt-image-2"].filter(Boolean).join("/"), /\//);
+}
+
 function defaultPrompt(id: string, title: string, prompt: string, coverUrl: string, tags: string[], preview: string): Omit<Prompt, "category" | "githubUrl"> {
     return { id, title, coverUrl, prompt, tags, preview, createdAt: "", updatedAt: "" };
 }
@@ -209,10 +299,16 @@ function extractMarkdownImages(baseUrl: string, markdown: string) {
     return Array.from(markdown.matchAll(/!\[[^\]]*]\(([^)]+)\)/g), (match) => absoluteImage(baseUrl, match[1])).filter(Boolean);
 }
 
+function extractHtmlImages(baseUrl: string, markdown: string) {
+    return Array.from(markdown.matchAll(/<img\s+[^>]*src="([^"]+)"/g), (match) => absoluteImage(baseUrl, match[1])).filter(Boolean);
+}
+
 function absoluteImage(baseUrl: string, image: string) {
     if (!image) return "";
     if (/^https?:\/\//i.test(image)) return image;
-    return `${baseUrl}/${image.replace(/^\.?\//, "")}`;
+    const normalizedBase = baseUrl.replace(/\/$/, "");
+    const normalizedImage = image.startsWith("/") ? image.slice(1) : image.replace(/^\.?\//, "");
+    return `${normalizedBase}/${normalizedImage}`;
 }
 
 function tagsFromCategory(category: string) {

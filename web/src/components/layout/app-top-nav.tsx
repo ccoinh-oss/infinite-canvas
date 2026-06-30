@@ -21,31 +21,25 @@ export function AppTopNav() {
     return (
         <>
             {!hideHeader ? (
-                <header className="sticky top-0 z-20 h-16 shrink-0 border-b border-stone-200 bg-background/90 backdrop-blur-xl dark:border-stone-800">
-                    <div className="mx-auto flex h-full max-w-7xl items-stretch justify-between gap-5 px-6">
+                <header className="sticky top-0 z-20 h-16 shrink-0 border-b border-stone-200/60 bg-background/75 backdrop-blur-xl dark:border-white/10 dark:bg-stone-950/70">
+                    <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
                         <div className="flex min-w-0 items-center">
-                            <Link href="/" className="flex h-full shrink-0 items-center gap-2 text-sm font-semibold leading-none tracking-tight text-stone-950 transition hover:text-stone-600 dark:text-stone-100 dark:hover:text-stone-300">
-                                <span
-                                    className="size-5 shrink-0 bg-current"
-                                    style={{
-                                        mask: "url(/logo.svg) center / contain no-repeat",
-                                        WebkitMask: "url(/logo.svg) center / contain no-repeat",
-                                    }}
-                                />
-                                <span className="text-base font-medium">无限画布</span>
+                            <Link href="/" className="flex shrink-0 items-center gap-2 rounded-full px-1.5 py-1 text-sm font-medium leading-none tracking-tight text-stone-900 transition hover:text-stone-600 dark:text-stone-100 dark:hover:text-stone-300">
+                                <img src="/logo.png" alt="BMCCA无限画布" className="size-7 shrink-0 rounded-md object-contain" />
+                                <span className="hidden text-[15px] font-medium sm:inline">BMCCA无限画布</span>
                             </Link>
 
                             <button
                                 type="button"
-                                className="ml-3 inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 md:hidden dark:text-stone-300 dark:hover:text-white"
+                                className="ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-stone-500 transition hover:bg-stone-950/[0.05] hover:text-stone-950 md:hidden dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white"
                                 onClick={() => setMobileNavOpen(true)}
                                 aria-label="打开导航菜单"
                                 title="导航菜单"
                             >
-                                <Menu className="size-5" />
+                                <Menu className="size-4" />
                             </button>
 
-                            <nav className="hide-scrollbar ml-8 hidden h-16 min-w-0 items-center gap-7 overflow-x-auto md:flex">
+                            <nav className="hide-scrollbar ml-5 hidden min-w-0 items-center gap-1 overflow-x-auto md:flex">
                                 {navigationTools.map((tool) => {
                                     const Icon = tool.icon;
                                     const active = tool.slug === activeToolSlug;
@@ -54,10 +48,10 @@ export function AppTopNav() {
                                             key={tool.slug}
                                             href={`/${tool.slug}`}
                                             className={cn(
-                                                "relative flex h-16 shrink-0 items-center gap-2 text-sm leading-6 transition after:absolute after:inset-x-0 after:bottom-0 after:h-px",
+                                                "relative flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm leading-none transition",
                                                 active
-                                                    ? "font-medium text-stone-950 after:bg-stone-950 dark:text-stone-100 dark:after:bg-stone-100"
-                                                    : "text-stone-500 after:bg-transparent hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100",
+                                                    ? "bg-stone-950 font-medium text-white shadow-sm shadow-stone-950/10 dark:bg-stone-100 dark:text-stone-950 dark:shadow-none"
+                                                    : "text-stone-500 hover:bg-stone-950/[0.05] hover:text-stone-950 dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-stone-100",
                                             )}
                                         >
                                             <Icon className="size-4" />
@@ -68,7 +62,7 @@ export function AppTopNav() {
                             </nav>
                         </div>
 
-                        <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
+                        <div className="my-auto flex min-w-0 items-center justify-end rounded-full border border-stone-200/70 bg-white/60 px-1.5 py-1 shadow-sm shadow-stone-950/[0.03] backdrop-blur dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none">
                             <UserStatusActions />
                         </div>
                     </div>

@@ -19,7 +19,10 @@ export type PromptListResponse = {
     items: Prompt[];
     tags: string[];
     categories: string[];
+    fetchedAt: number;
+    sourceCount: number;
     total: number;
+    totalAll: number;
 };
 
 export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page, pageSize }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number } = {}) {
@@ -40,4 +43,10 @@ export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROM
 export function formatPromptDate(value: string) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "" : new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
+export function formatPromptDateTime(value?: number) {
+    if (!value) return "暂无";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "暂无" : new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
 }

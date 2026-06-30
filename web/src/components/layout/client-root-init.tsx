@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { App } from "antd";
 
-import { createModelChannel, useConfigStore } from "@/stores/use-config-store";
+import { createModelChannel, normalizeBaseUrl, useConfigStore } from "@/stores/use-config-store";
+import { useUserStore } from "@/stores/use-user-store";
 
 export function ClientRootInit({ children }: { children: ReactNode }) {
     const { message } = App.useApp();
@@ -12,11 +13,23 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     const updateConfig = useConfigStore((state) => state.updateConfig);
     const config = useConfigStore((state) => state.config);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+    const refreshSession = useUserStore((state) => state.refreshSession);
+
+    useEffect(() => {
+        void refreshSession().catch(() => undefined);
+    }, [refreshSession]);
+
+    useEffect(() => {
+        const baseUrl = normalizeBaseUrl(config.baseUrl);
+        const channels = config.channels.map((channel) => ({ ...channel, baseUrl: normalizeBaseUrl(channel.baseUrl) }));
+        if (baseUrl !== config.baseUrl) updateConfig("baseUrl", baseUrl);
+        if (channels.some((channel, index) => channel.baseUrl !== config.channels[index]?.baseUrl)) updateConfig("channels", channels);
+    }, [config.baseUrl, config.channels, updateConfig]);
 
     useEffect(() => {
         if (handledConfigParams.current) return;
         const searchParams = new URLSearchParams(window.location.search);
-        const baseUrl = searchParams.get("baseUrl") || searchParams.get("baseurl");
+        const baseUrl = normalizeBaseUrl(searchParams.get("baseUrl") || searchParams.get("baseurl") || "");
         const apiKey = searchParams.get("apiKey") || searchParams.get("apikey");
         if (!baseUrl && !apiKey) return;
         handledConfigParams.current = true;

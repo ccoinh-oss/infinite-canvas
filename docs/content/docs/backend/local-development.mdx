@@ -5,7 +5,7 @@ description: 前端优先的本地开发方式
 
 # 本地开发
 
-当前主应用以 `web/` 前端为主，AI 请求由浏览器前台直连用户自己的 OpenAI 兼容接口。
+当前主应用以 `web/` 前端为主，Base URL 和 API Key 仍由浏览器本地配置；模型拉取和 OpenAI 图片生成/编辑请求通过 Next.js Route 临时转发。
 
 ## 1. 启动前端
 
@@ -25,7 +25,11 @@ http://localhost:3000
 
 打开右上角配置弹窗，填写自己的 `Base URL`、`API Key` 和模型名。第三方提示词由 Next.js route 拉取并缓存在运行实例内存中；WebDAV 可选择前端直连或 Next.js 转发。
 
-## 3. 启动文档站
+## 3. 登录配置
+
+登录账号、会话时长和 Cookie 设置写在根目录 `config/app.yaml`。默认账号为 `admin / admin123`，正式部署前请替换配置中的 `password_hash` 和 `session_secret`。
+
+## 4. 启动文档站
 
 如果需要单独调整文档站，在 `docs` 目录执行：
 

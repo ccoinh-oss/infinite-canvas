@@ -49,4 +49,15 @@ docker compose -f docker-compose.local.yml up -d --build
 
 ## 数据说明
 
-当前主应用镜像只启动 Next.js。画布、我的素材、生成记录和 AI API Key 默认保存在浏览器本地；第三方提示词由 Next.js route 拉取后缓存在运行实例内存里，不需要额外挂载数据目录。
+当前主应用镜像只启动 Next.js。登录运行参数来自镜像内的 `config/app.yaml`，自助注册账号写入运行期数据文件 `data/auth-users.json`。
+
+`docker-compose.yml` 和 `docker-compose.local.yml` 默认挂载：
+
+```text
+./data:/app/data
+```
+
+这样容器重建后，网页注册的账号仍会保留。账号不会写入 YAML。
+
+画布、我的素材、生成记录和 AI API Key 默认仍保存在浏览器本地；第三方提示词由 Next.js route 拉取后缓存在运行实例内存里。
+

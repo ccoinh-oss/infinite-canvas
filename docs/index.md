@@ -16,6 +16,7 @@
 ## 开发与数据
 
 - [本地开发](/docs/backend/local-development)
+- [登录准入](/docs/backend/auth-login)
 - [画布数据结构](/docs/backend/canvas-data-structure)
 
 ## 商务合作
@@ -39,4 +40,6 @@
 ## 说明
 
 - 当前画布项目和“我的素材”主要保存在浏览器本地，跨设备可自行配置 WebDAV 同步。
-- AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
+- AI API Key 保存在浏览器本地；模型拉取和 OpenAI 图片生成/编辑请求由 Next.js Route 临时转发。
+- 登录只做访问准入；账号运行数据写入 data/auth-users.json，不会把画布、素材或生成记录保存到项目服务器。
+

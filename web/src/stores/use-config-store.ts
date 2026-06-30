@@ -61,17 +61,18 @@ export type ModelCapability = "image" | "video" | "text" | "audio";
 const CHANNEL_MODEL_SEPARATOR = "::";
 const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+export const LOCKED_BASE_URL = "https://cca.maya.today";
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
-    baseUrl: OPENAI_BASE_URL,
+    baseUrl: LOCKED_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
     channels: [
         {
             id: "default",
-            name: "默认渠道",
-            baseUrl: OPENAI_BASE_URL,
+            name: "BMCCA",
+            baseUrl: LOCKED_BASE_URL,
             apiKey: "",
             apiFormat: "openai",
             models: ["gpt-image-2", "grok-imagine-video", "gpt-5.5", "gpt-4o-mini-tts"],
@@ -180,7 +181,7 @@ export const useConfigStore = create<ConfigStore>()(
                 set((state) => ({
                     config: {
                         ...state.config,
-                        [key]: value,
+                        [key]: normalizeConfigValue(key, value),
                     },
                 })),
             updateWebdavConfig: (key, value) =>
@@ -212,6 +213,7 @@ export const useConfigStore = create<ConfigStore>()(
                     config: {
                         ...config,
                         channelMode: "local",
+                        baseUrl: LOCKED_BASE_URL,
                         apiFormat: normalizeApiFormat(config.apiFormat),
                         channels,
                         models,
@@ -255,8 +257,8 @@ export function createModelChannel(channel?: Partial<ModelChannel>): ModelChanne
     const apiFormat = normalizeApiFormat(channel?.apiFormat);
     return {
         id: channel?.id?.trim() || nanoid(),
-        name: channel?.name?.trim() || "新渠道",
-        baseUrl: channel?.baseUrl?.trim() || defaultBaseUrlForApiFormat(apiFormat),
+        name: channel?.name?.trim() || "BMCCA",
+        baseUrl: normalizeBaseUrl(channel?.baseUrl || LOCKED_BASE_URL),
         apiKey: channel?.apiKey || "",
         apiFormat,
         models: uniqueRawModels(channel?.models || []),
@@ -308,7 +310,7 @@ export function resolveModelChannel(config: AiConfig, value: string) {
     const decoded = decodeChannelModel(value);
     const model = decoded?.model || value;
     const matched = decoded ? config.channels.find((channel) => channel.id === decoded.channelId) : config.channels.find((channel) => channel.models.includes(model));
-    return matched || config.channels[0] || createModelChannel({ id: "default", name: "默认渠道", baseUrl: config.baseUrl, apiKey: config.apiKey, apiFormat: config.apiFormat, models: config.models.map(modelOptionName) });
+    return matched || config.channels[0] || createModelChannel({ id: "default", name: "BMCCA", baseUrl: config.baseUrl, apiKey: config.apiKey, apiFormat: config.apiFormat, models: config.models.map(modelOptionName) });
 }
 
 export function resolveModelRequestConfig(config: AiConfig, value: string) {
@@ -316,7 +318,7 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
     return {
         ...config,
         model: modelOptionName(value || config.model),
-        baseUrl: channel.baseUrl,
+        baseUrl: normalizeBaseUrl(channel.baseUrl),
         apiKey: channel.apiKey,
         apiFormat: channel.apiFormat,
     };
@@ -328,7 +330,7 @@ function normalizeChannels(config: AiConfig) {
         createModelChannel({
             ...channel,
             id: channel.id || (index === 0 ? "default" : `channel-${index + 1}`),
-            name: channel.name || (index === 0 ? "默认渠道" : `渠道 ${index + 1}`),
+            name: channel.name || "BMCCA",
             models: uniqueRawModels(channel.models || []),
         }),
     );
@@ -351,7 +353,7 @@ function normalizeChannels(config: AiConfig) {
             }),
         );
     }
-    return channels.map((channel) => ({ ...channel, models: uniqueRawModels(channel.models) }));
+    return channels.map((channel) => ({ ...channel, baseUrl: normalizeBaseUrl(channel.baseUrl), models: uniqueRawModels(channel.models) }));
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
@@ -371,11 +373,21 @@ function uniqueModelOptions(models: string[]) {
 }
 
 export function buildApiUrl(baseUrl: string, path: string) {
-    let normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+    let normalizedBaseUrl = normalizeBaseUrl(baseUrl);
     normalizedBaseUrl = normalizeArkPlanBaseUrl(normalizedBaseUrl);
     const lowerBaseUrl = normalizedBaseUrl.toLowerCase();
     const apiBaseUrl = lowerBaseUrl.endsWith("/v1") || lowerBaseUrl.endsWith("/api/v3") || lowerBaseUrl.endsWith("/api/plan/v3") ? normalizedBaseUrl : `${normalizedBaseUrl}/v1`;
     return `${apiBaseUrl}${path}`;
+}
+
+export function normalizeBaseUrl(baseUrl: string) {
+    return baseUrl.trim().replace(/\/+$/, "");
+}
+
+function normalizeConfigValue<K extends keyof AiConfig>(key: K, value: AiConfig[K]) {
+    if (key === "baseUrl") return normalizeBaseUrl(String(value)) as AiConfig[K];
+    if (key === "channels") return (value as ModelChannel[]).map((channel) => ({ ...channel, baseUrl: normalizeBaseUrl(channel.baseUrl) })) as AiConfig[K];
+    return value;
 }
 
 function normalizeArkPlanBaseUrl(baseUrl: string) {

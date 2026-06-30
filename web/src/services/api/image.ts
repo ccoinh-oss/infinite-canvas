@@ -1,8 +1,7 @@
 import axios from "axios";
 
-import { buildApiUrl, resolveModelRequestConfig, type AiConfig, type ModelChannel } from "@/stores/use-config-store";
+import { buildApiUrl, normalizeBaseUrl, resolveModelRequestConfig, type AiConfig, type ModelChannel } from "@/stores/use-config-store";
 import { nanoid } from "nanoid";
-import { dataUrlToFile } from "@/lib/image-utils";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { imageToDataUrl } from "@/services/image-storage";
 import type { ReferenceImage } from "@/types/image";
@@ -237,6 +236,40 @@ function aiHeaders(config: AiConfig, contentType?: string) {
         Authorization: `Bearer ${config.apiKey}`,
         ...(contentType ? { "Content-Type": contentType } : {}),
     };
+}
+
+async function postOpenAiJson<T>(config: AiConfig, path: string, body: Record<string, unknown>, options?: RequestOptions) {
+    const response = await axios.post<T>(
+        "/api/ai",
+        {
+            baseUrl: config.baseUrl,
+            apiKey: config.apiKey,
+            apiFormat: config.apiFormat,
+            path,
+            method: "POST",
+            contentType: "application/json",
+            body,
+        },
+        { signal: options?.signal },
+    );
+    return response;
+}
+
+async function postOpenAiForm<T>(config: AiConfig, path: string, body: { fields: Record<string, string>; files: Array<{ field: string; name: string; type: string; dataUrl: string }> }, options?: RequestOptions) {
+    const response = await axios.post<T>(
+        "/api/ai",
+        {
+            baseUrl: config.baseUrl,
+            apiKey: config.apiKey,
+            apiFormat: config.apiFormat,
+            path,
+            method: "POST",
+            contentType: "multipart/form-data",
+            body,
+        },
+        { signal: options?.signal },
+    );
+    return response;
 }
 
 function geminiBaseUrl(config: Pick<AiConfig, "baseUrl">) {
@@ -620,8 +653,9 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
     const quality = normalizeQuality(config.quality);
     const requestSize = resolveRequestSize(quality, config.size);
     try {
-        const response = await axios.post<ImageApiResponse>(
-            aiApiUrl(requestConfig, "/images/generations"),
+        const response = await postOpenAiJson<ImageApiResponse>(
+            requestConfig,
+            "/images/generations",
             {
                 model: requestConfig.model,
                 prompt: withSystemPrompt(requestConfig, prompt),
@@ -631,10 +665,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
                 response_format: "b64_json",
                 output_format: IMAGE_OUTPUT_FORMAT,
             },
-            {
-                headers: aiHeaders(requestConfig, "application/json"),
-                signal: options?.signal,
-            },
+            options,
         );
         const images = parseImagePayload(response.data);
         return images;
@@ -657,24 +688,31 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     }
     const quality = normalizeQuality(config.quality);
     const requestSize = resolveRequestSize(quality, config.size);
-    const formData = new FormData();
-    formData.set("model", requestConfig.model);
-    formData.set("prompt", withSystemPrompt(requestConfig, requestPrompt));
-    formData.set("n", String(n));
-    formData.set("response_format", "b64_json");
-    formData.set("output_format", IMAGE_OUTPUT_FORMAT);
+    const fields: Record<string, string> = {
+        model: requestConfig.model,
+        prompt: withSystemPrompt(requestConfig, requestPrompt),
+        n: String(n),
+        response_format: "b64_json",
+        output_format: IMAGE_OUTPUT_FORMAT,
+    };
     if (quality) {
-        formData.set("quality", quality);
+        fields.quality = quality;
     }
     if (requestSize) {
-        formData.set("size", requestSize);
+        fields.size = requestSize;
     }
-    const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
-    files.forEach((file) => formData.append("image", file));
-    if (mask) formData.set("mask", dataUrlToFile(mask));
+    const files = await Promise.all(
+        references.map(async (image) => ({
+            field: "image",
+            name: image.name || "reference.png",
+            type: image.type || "image/png",
+            dataUrl: await imageToDataUrl(image),
+        })),
+    );
+    if (mask) files.push({ field: "mask", name: mask.name || "mask.png", type: mask.type || "image/png", dataUrl: mask.dataUrl });
 
     try {
-        const response = await axios.post<ImageApiResponse>(aiApiUrl(requestConfig, "/images/edits"), formData, { headers: aiHeaders(requestConfig), signal: options?.signal });
+        const response = await postOpenAiForm<ImageApiResponse>(requestConfig, "/images/edits", { fields, files }, options);
         const images = parseImagePayload(response.data);
         return images;
     } catch (error) {
@@ -721,23 +759,9 @@ export async function requestToolResponse(config: AiConfig, messages: ResponseIn
 
 export async function fetchImageModels(config: Pick<AiConfig, "baseUrl" | "apiKey" | "apiFormat">) {
     try {
-        if (config.apiFormat === "gemini") {
-            const response = await axios.get<GeminiPayload>(geminiApiUrl({ ...defaultGeminiConfig, ...config }), { headers: geminiHeaders({ ...defaultGeminiConfig, ...config }) });
-            validateGeminiPayload(response.data);
-            return (response.data.models || [])
-                .map((model) => model.name?.replace(/^models\//, ""))
-                .filter((id): id is string => Boolean(id))
-                .sort((a, b) => a.localeCompare(b));
-        }
-        const response = await axios.get<{ data?: Array<{ id?: string }>; error?: { message?: string } }>(buildApiUrl(config.baseUrl, "/models"), {
-            headers: {
-                Authorization: `Bearer ${config.apiKey}`,
-            },
-        });
-        return (response.data.data || [])
-            .map((model) => model.id)
-            .filter((id): id is string => Boolean(id))
-            .sort((a, b) => a.localeCompare(b));
+        const response = await axios.post<{ code?: number; data?: string[]; msg?: string }>("/api/models", { ...config, baseUrl: normalizeBaseUrl(config.baseUrl) });
+        if (response.data.code && response.data.code !== 0) throw new Error(response.data.msg || "读取模型失败");
+        return response.data.data || [];
     } catch (error) {
         throw new Error(readAxiosError(error, "读取模型失败"));
     }

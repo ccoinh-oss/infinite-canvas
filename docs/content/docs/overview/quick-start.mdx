@@ -9,7 +9,7 @@ description: 用最少步骤把无限画布跑起来
 
 ## Vercel 部署
 
-在 Vercel 中导入仓库即可，根目录 `vercel.json` 会构建 `web/`。当前版本的 AI 请求由浏览器前台直连用户自己的 OpenAI 兼容地址，不需要额外配置服务端。
+在 Vercel 中导入仓库即可，根目录 `vercel.json` 会构建 `web/`。当前版本会用 Next.js Route 转发模型拉取和 OpenAI 图片生成/编辑请求，Base URL 和 API Key 仍由用户在浏览器本地配置。
 
 ## 本地启动
 
@@ -27,17 +27,20 @@ bun run dev
 http://localhost:3000
 ```
 
+首次打开 /login 后可直接注册账号，注册成功会自动登录。账号运行数据写入 data/auth-users.json，不会写入 config/app.yaml。正式部署前请修改根目录 config/app.yaml 中的 session_secret。
+
 ## Docker 启动
 
 如果你需要基于当前源码构建镜像：
 
 ```bash
 docker build -t infinite-canvas .
-docker run --rm -p 3000:3000 infinite-canvas
+docker run --rm -p 3000:3000 -v ./data:/app/data infinite-canvas
 ```
 
 ## 首次使用建议
 
+- 先在登录页注册账号并进入应用；登录只做访问准入，不会把画布和素材上传到服务器。
 - 先打开右上角配置弹窗，填入自己的 `Base URL`、`API Key` 和模型名。
 - 如果需要提示词仓库内容，打开 `/prompts` 会通过 Next.js route 拉取并缓存在内存中。
 - 如果需要跨设备同步画布、素材和生成记录，可在配置弹窗中填写 WebDAV。
@@ -45,4 +48,7 @@ docker run --rm -p 3000:3000 infinite-canvas
 ## 说明
 
 - 当前画布项目和“我的素材”主要保存在浏览器本地，WebDAV 同步需要用户自行配置。
-- AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
+- AI API Key 保存在浏览器本地；模型拉取和 OpenAI 图片生成/编辑请求会由 Next.js Route 临时转发。
+- 登录运行参数写在根目录 `config/app.yaml`，注册账号运行数据写在 `data/auth-users.json`。
+
+

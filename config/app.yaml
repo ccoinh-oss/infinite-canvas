@@ -1,0 +1,27 @@
+# Infinite Canvas 应用配置。
+# 所有运行所需配置都集中写在本 YAML 文件中，避免通过环境变量或命令行参数传递。
+
+app:
+  # 浏览器标签和登录页展示名称。
+  name: BMCCA无限画布
+
+auth:
+  # 是否启用登录准入；关闭后页面与 API 不再要求登录。
+  enabled: true
+  # 是否允许用户在网页上自助注册账号。
+  registration_enabled: true
+  # 账号运行数据文件路径；这里只保存路径配置，真实账号数据写入 data/auth-users.json，不写入 YAML。
+  user_store_path: data/auth-users.json
+  # 登录会话 Cookie 名称，仅保存服务端签名后的轻量会话，不保存画布、素材或生成记录。
+  cookie_name: infinite_canvas_session
+  # Cookie 是否仅允许 HTTPS 发送；本地 HTTP 调试保持 false，部署到 HTTPS 后可改为 true。
+  cookie_secure: false
+  # 会话有效期，单位秒；默认 7 天。
+  session_ttl_seconds: 604800
+  # 会话签名密钥；生产部署前请替换为新的随机长字符串。
+  session_secret: 51d6c01b70938f6a34700b575aeebff90eda620052c3a89e375cca646e30e365
+  # 登录账号只用于访问准入；画布、素材、生成记录、AI API Key 仍保存在用户当前浏览器本地。
+  local_data_notice: 画布、素材、生成记录和 AI API Key 仅保存在当前浏览器本地，换设备或清理浏览器数据后不会自动同步。
+
+
+

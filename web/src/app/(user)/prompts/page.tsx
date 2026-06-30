@@ -10,7 +10,7 @@ import { usePromptList } from "@/components/prompts/use-prompt-list";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { ALL_PROMPTS_OPTION, type Prompt } from "@/services/api/prompts";
+import { ALL_PROMPTS_OPTION, formatPromptDateTime, type Prompt } from "@/services/api/prompts";
 
 export default function PromptsPage() {
     const { message } = App.useApp();
@@ -20,7 +20,7 @@ export default function PromptsPage() {
     const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
     const addAsset = useAssetStore((state) => state.addAsset);
     const copyText = useCopyText();
-    const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, total: totalPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory });
+    const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, fetchedAt, sourceCount, total: totalPrompts, totalAll: allPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory });
 
     useEffect(() => {
         if (query.isError) {
@@ -54,7 +54,22 @@ export default function PromptsPage() {
                 <div className="pb-8">
                     <div className="mx-auto max-w-5xl text-center">
                         <h1 className="text-4xl font-semibold tracking-tight text-stone-950 dark:text-stone-100">提示词中心</h1>
-                        <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">共 {totalPrompts} 条提示词，按标题、标签与分类快速查找灵感。</p>
+                        <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">共 {allPrompts || totalPrompts} 条提示词，按标题、标签与分类快速查找灵感。</p>
+                        <div className="mx-auto mt-5 grid max-w-3xl gap-3 text-left sm:grid-cols-3">
+                            <div className="rounded-2xl border border-stone-200/70 bg-white/70 px-4 py-3 shadow-sm shadow-stone-950/[0.03] backdrop-blur dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none">
+                                <div className="text-xs text-stone-500 dark:text-stone-400">提示词总量</div>
+                                <div className="mt-1 text-xl font-semibold text-stone-950 dark:text-stone-100">{allPrompts || totalPrompts}</div>
+                            </div>
+                            <div className="rounded-2xl border border-stone-200/70 bg-white/70 px-4 py-3 shadow-sm shadow-stone-950/[0.03] backdrop-blur dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none">
+                                <div className="text-xs text-stone-500 dark:text-stone-400">当前筛选</div>
+                                <div className="mt-1 text-xl font-semibold text-stone-950 dark:text-stone-100">{totalPrompts}</div>
+                            </div>
+                            <div className="rounded-2xl border border-stone-200/70 bg-white/70 px-4 py-3 shadow-sm shadow-stone-950/[0.03] backdrop-blur dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none">
+                                <div className="text-xs text-stone-500 dark:text-stone-400">更新时间</div>
+                                <div className="mt-1 text-sm font-medium text-stone-950 dark:text-stone-100">{formatPromptDateTime(fetchedAt)}</div>
+                                <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{sourceCount} 个远程源</div>
+                            </div>
+                        </div>
                     </div>
                     {query.isLoading ? (
                         <div className="flex h-60 items-center justify-center">

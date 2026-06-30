@@ -57,14 +57,14 @@ description: 当前项目已实现的主要功能
 
 ## AI 生成
 
-项目默认使用前台直连：前端使用浏览器本地配置的 Base URL、API Key 和 Model 直接请求 OpenAI 兼容接口，不再通过项目服务端转发 AI 请求。
+Base URL、API Key 和 Model 仍保存在浏览器本地；模型拉取和 OpenAI 图片生成/编辑请求通过 Next.js Route 临时转发，避免浏览器 CORS 或上游首页 HTML 响应影响生图。
 
 OpenAI 兼容图像和文本能力继续复用现有接口：
 
 - `/v1/images/generations`：文生图。
 - `/v1/images/edits`：图生图/参考图编辑。
 - `/v1/responses`：文本问答、带图问答和在线 Agent 工具调用。
-- `/v1/models`：读取模型列表；火山方舟 Agent Plan 专属 `/api/plan/v3` 当前未提供 OpenAI `/models` 模型列表接口，需要手动填写模型名。
+- `/v1/models`：读取模型列表；通过 `/api/models` 服务端代理转发；火山方舟 Agent Plan 专属 `/api/plan/v3` 当前未提供 OpenAI `/models` 模型列表接口，需要手动填写模型名。
 
 视频能力支持两类接口：
 
@@ -144,14 +144,16 @@ Base URL 如果已经以 `/v1`、`/api/v3` 或 `/api/plan/v3` 结尾，系统不
 
 ## 配置和同步
 
-- 当前版本不需要账号登录，也不再提供后台管理页面。
+- 当前版本支持网页自助注册、账号密码登录和修改自己的账号配置；登录运行参数写在 `config/app.yaml`，账号运行数据写在 `data/auth-users.json`。
 - 配置与用户偏好弹窗支持多个 OpenAI 兼容渠道、默认模型、生成偏好和 WebDAV 同步设置。
-- 第三方提示词和 WebDAV 可使用少量 Next.js route，AI 接口不经过项目后端代理。
+- 第三方提示词、模型拉取和 OpenAI 图片生成/编辑会使用少量 Next.js route；AI API Key 仍来自浏览器本地配置，不写入服务器配置。
 
 ## 当前限制
 
 - 画布项目和“我的素材”目前只保存在浏览器本地，不会随账号同步。
-- AI API Key 保存在浏览器本地，并由浏览器直接请求配置的 OpenAI 兼容接口；只适合个人或可信环境使用。
+- 登录账号只用于访问准入，不会把画布、素材、生成记录或 AI API Key 保存到项目服务器。
+- AI API Key 保存在浏览器本地；模型拉取和 OpenAI 图片生成/编辑请求会由 Next.js Route 临时转发，不写入服务器配置；仍建议只在个人或可信环境使用。
 - Seedance 本地参考视频/音频更建议使用公网可访问 URL；上游是否接受前端传入的本地数据取决于具体兼容接口。
 - Seedance 返回远程视频 URL 时，前端会尽量下载为本地 Blob 持久化；如果因 CORS 或网络限制无法下载，会保留远程 URL，后续是否可播放取决于上游 URL 的有效期。
 - 画布更适合桌面端使用，移动端触控体验还未系统完善。
+

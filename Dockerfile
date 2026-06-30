@@ -6,6 +6,7 @@ COPY web/package.json web/bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile --cache-dir=/root/.bun/install/cache
 COPY VERSION /app/VERSION
 COPY CHANGELOG.md /app/CHANGELOG.md
+COPY config /app/config
 COPY web ./
 RUN bun run build
 
@@ -15,6 +16,7 @@ FROM node:22-bookworm-slim
 WORKDIR /app
 COPY VERSION /app/VERSION
 COPY CHANGELOG.md /app/CHANGELOG.md
+COPY config /app/config
 COPY --from=web-build /app/web/public /app/web/public
 COPY --from=web-build /app/web/.next/standalone /app/web
 COPY --from=web-build /app/web/.next/static /app/web/.next/static

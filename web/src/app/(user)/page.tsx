@@ -29,8 +29,8 @@ export default function IndexPage() {
     const [previewOpen, setPreviewOpen] = useState(false);
 
     useEffect(() => {
-        void fetchPrompts({ pageSize: 12 })
-            .then((data) => setPromptShowcase(data.items))
+        void fetchPrompts({ pageSize: 60 })
+            .then((data) => setPromptShowcase(data.items.filter((item) => item.coverUrl).slice(0, 12)))
             .catch((error) => message.error(error instanceof Error ? error.message : "获取提示词失败"));
     }, [message]);
 
@@ -41,11 +41,11 @@ export default function IndexPage() {
                 <div className="pointer-events-none absolute right-[23%] top-[48%] size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
 
                 <div className="relative flex min-h-[620px] flex-col items-center justify-center pt-10 text-center">
-                    <h1 className="ai-title-aurora max-w-5xl text-balance text-5xl font-semibold tracking-normal sm:text-7xl lg:text-8xl">无限画布</h1>
+                    <h1 className="ai-title-aurora max-w-5xl text-balance text-5xl font-semibold tracking-normal sm:text-7xl lg:text-8xl">BMCCA无限画布</h1>
                     <p className="mt-8 max-w-3xl text-balance text-lg leading-8 text-stone-500 dark:text-stone-400">
                         在
                         <Highlighter action="underline" color="#FF9800">
-                            无限画布
+                            BMCCA无限画布
                         </Highlighter>
                         中生成、连接和重组
                         <Highlighter action="highlight" color="#87CEFA">

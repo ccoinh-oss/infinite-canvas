@@ -4,6 +4,7 @@
   "defaultOpen": true,
   "pages": [
     "local-development",
+    "auth-login",
     "canvas-data-structure"
   ]
 }
