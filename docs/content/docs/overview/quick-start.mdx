@@ -42,7 +42,7 @@ docker run --rm -p 3000:3000 -v ./data:/app/data infinite-canvas
 
 - 先在登录页注册账号并进入应用；登录只做访问准入，不会把画布和素材上传到服务器。
 - 先打开右上角配置弹窗，填入自己的 `Base URL`、`API Key` 和模型名。
-- 如果需要提示词仓库内容，打开 `/prompts` 会通过 Next.js route 拉取并缓存在内存中。
+- 如果需要提示词仓库内容，打开 `/prompts` 会通过 Next.js route 拉取第三方仓库，并把解析后的提示词全量缓存到 `data/prompts-cache.json`；后续访问优先读取缓存，缓存过期后自动增量更新。
 - 如果需要跨设备同步画布、素材和生成记录，可在配置弹窗中填写 WebDAV。
 
 ## 说明

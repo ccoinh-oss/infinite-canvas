@@ -19,6 +19,9 @@
 + [修复] 修复 youmind-nano-banana-pro 提示词封面图显示徽章而非效果图的问题。
 + [新增] 首页"查看提示词库"按钮下方显示当前内置提示词总量和更新时间。
 + [调整] 提示词库数据源扩展至 8 个 GitHub 仓库，总量约 15000+ 条。
++ [新增] 提示词库磁盘缓存：支持全量缓存到 data/prompts-cache.json，可配置 TTL 和路径，避免每次刷新都抓取 GitHub。
++ [新增] 提示词 API 支持 refresh=1 强制刷新缓存、返回 totalChinese 和缓存状态信息。
++ [重构] 提示词缓存逻辑抽取到 lib/prompts/prompt-cache.ts，新增 api/prompts/cache 管理接口。
 
 ## v0.4.0 - 2026-06-16
 

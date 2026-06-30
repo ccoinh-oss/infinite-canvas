@@ -15,6 +15,16 @@ export type Prompt = {
 
 export const ALL_PROMPTS_OPTION = "全部";
 
+export type PromptCacheSource = "memory" | "disk" | "refresh";
+
+export type PromptCacheStatus = {
+    enabled: boolean;
+    source: PromptCacheSource;
+    ttlMs: number;
+    stats: { added: number; updated: number; deleted: number; unchanged: number; total: number };
+    sources: Record<string, { githubUrl: string; ok: boolean; itemCount: number; error?: string; updatedAt: number }>;
+};
+
 export type PromptListResponse = {
     items: Prompt[];
     tags: string[];
@@ -24,9 +34,10 @@ export type PromptListResponse = {
     total: number;
     totalAll: number;
     totalChinese: number;
+    cache: PromptCacheStatus;
 };
 
-export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page, pageSize, random, coverOnly, language }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number; random?: boolean; coverOnly?: boolean; language?: "zh" } = {}) {
+export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page, pageSize, random, coverOnly, language, refresh }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number; random?: boolean; coverOnly?: boolean; language?: "zh"; refresh?: boolean } = {}) {
     const params = serializeApiParams(
         compactApiParams({
             ...(keyword ? { keyword } : {}),
@@ -37,6 +48,7 @@ export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROM
             ...(random ? { random: 1 } : {}),
             ...(coverOnly ? { coverOnly: 1 } : {}),
             ...(language ? { language } : {}),
+            ...(refresh ? { refresh: 1 } : {}),
         }),
     );
     const response = await fetch(`/api/prompts${params.size ? `?${params}` : ""}`);

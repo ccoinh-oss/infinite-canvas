@@ -16,3 +16,11 @@ description: 当前已接入同步逻辑的第三方提示词仓库
 | https://github.com/songtianlun/awesome-prompts | ??????? |
 | https://github.com/Danielhan626/best-gpt-image-2-prompts-digest | ??????? |
 | https://github.com/YouMind-OpenLab/ai-image-prompts-skill | ??????? |
+
+## 缓存与更新
+
+- 提示词库会把解析后的全量数据写入 `data/prompts-cache.json`，后续访问优先使用内存或磁盘缓存。
+- 缓存过期后会重新拉取第三方源，并按稳定键对比新增、修改、删除和未变化数量。
+- 如果某个第三方源临时拉取失败，会保留该源上一次成功的缓存数据，避免网络抖动导致分类被清空。
+- 缓存文件只保存提示词文本、标签、封面 URL 和来源信息，不会把远程图片下载到服务器。
+- `/api/prompts/cache` 可查看缓存状态，`POST /api/prompts/cache` 或 `/api/prompts?refresh=1` 可手动触发刷新。

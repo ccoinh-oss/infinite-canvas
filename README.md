@@ -77,6 +77,13 @@ docker run --rm -p 30026:30026 bmcca-canvas
 - 首页"查看提示词库"按钮下方实时显示当前提示词总量和更新时间。
 - 当前共聚合 8 个 GitHub 开源提示词仓库。
 
+### 提示词缓存优化
+
+- 新增磁盘缓存：首次抓取后全量写入 `data/prompts-cache.json`，避免每次启动都请求 GitHub。
+- 缓存参数可在 `config/app.yaml` 的 `prompts.cache` 中配置（开关、路径、有效期）。
+- API 支持 `?refresh=1` 强制刷新缓存，响应包含 `totalChinese` 和缓存状态。
+- 缓存逻辑重构到 `lib/prompts/prompt-cache.ts`，新增 `/api/prompts/cache` 管理接口。
+
 ### Bug 修复
 
 - 修复 canvas 页面 `useSearchParams` 未用 Suspense 包裹导致构建失败。

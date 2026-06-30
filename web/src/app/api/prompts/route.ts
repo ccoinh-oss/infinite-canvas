@@ -1,20 +1,9 @@
 import type { NextRequest } from "next/server";
 
+import { collectPromptTags, getPromptCacheOptions, hasChinesePromptText, isPromptCacheFresh, mergePromptCache, queryPromptItems, readPromptCache, writePromptCache, type Prompt, type PromptCacheFile, type PromptSourceLoadResult } from "@/lib/prompts/prompt-cache";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type Prompt = {
-    id: string;
-    title: string;
-    coverUrl: string;
-    prompt: string;
-    tags: string[];
-    category: string;
-    githubUrl: string;
-    preview: string;
-    createdAt: string;
-    updatedAt: string;
-};
 
 type PromptCategory = {
     category: string;
@@ -30,7 +19,6 @@ const davidWuGptImage2RawBase = "https://raw.githubusercontent.com/davidwuw0811-
 const songtianlunRawBase = "https://raw.githubusercontent.com/songtianlun/awesome-prompts/main";
 const danielGptImage2DigestRawBase = "https://raw.githubusercontent.com/Danielhan626/best-gpt-image-2-prompts-digest/main";
 const youMindAiImageSkillRawBase = "https://raw.githubusercontent.com/YouMind-OpenLab/ai-image-prompts-skill/main";
-const cacheTtlMs = 1000 * 60 * 60;
 
 const categories: PromptCategory[] = [
     { category: "awesome-gpt-image", githubUrl: "https://github.com/ZeroLu/awesome-gpt-image", build: buildAwesomeGptImagePrompts },
@@ -43,8 +31,8 @@ const categories: PromptCategory[] = [
     { category: "youmind-ai-image-prompts-skill", githubUrl: "https://github.com/YouMind-OpenLab/ai-image-prompts-skill", build: buildYouMindAiImageSkillPrompts },
 ];
 
-let memoryCache: { items: Prompt[]; fetchedAt: number } | null = null;
-let loadingPrompts: Promise<Prompt[]> | null = null;
+let memoryCache: PromptCacheFile | null = null;
+let loadingPrompts: Promise<PromptCacheFile> | null = null;
 
 export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams;
@@ -56,57 +44,62 @@ export async function GET(request: NextRequest) {
     const random = params.get("random") === "1";
     const coverOnly = params.get("coverOnly") === "1";
     const language = params.get("language") || "";
-    const items = await getPrompts();
-    const withoutTagFilter = filterPrompts(items, { keyword, category, tags: [] });
-    const filtered = filterPrompts(items, { keyword, category, tags });
-    const languageItems = language === "zh" ? filtered.filter(hasChinesePromptText) : filtered;
-    const visibleItems = coverOnly ? languageItems.filter((item) => item.coverUrl) : languageItems;
-    const pageItems = random ? shufflePrompts(visibleItems).slice(0, pageSize) : visibleItems.slice((page - 1) * pageSize, page * pageSize);
+    const forceRefresh = params.get("refresh") === "1";
+    const { cache, source } = await getPromptCache(forceRefresh);
+    const options = getPromptCacheOptions();
+    const items = cache.items;
+    const withoutTagFilter = queryPromptItems(items, { keyword, category, language, pageSize: 100 }).allItems;
+    const result = queryPromptItems(items, { keyword, category, tags, page, pageSize, random, coverOnly, language });
 
     return Response.json({
-        items: pageItems,
-        tags: collectTags(withoutTagFilter),
+        items: result.items,
+        tags: collectPromptTags(withoutTagFilter),
         categories: categories.map((item) => item.category),
-        fetchedAt: memoryCache?.fetchedAt || Date.now(),
+        fetchedAt: cache.updatedAt,
         sourceCount: categories.length,
-        total: visibleItems.length,
+        total: result.total,
         totalAll: items.length,
         totalChinese: items.filter(hasChinesePromptText).length,
+        cache: {
+            enabled: options.enabled,
+            source,
+            ttlMs: options.ttlMs,
+            stats: cache.stats,
+            sources: cache.sources,
+        },
     });
 }
 
-async function getPrompts() {
-    if (memoryCache && Date.now() - memoryCache.fetchedAt < cacheTtlMs) return memoryCache.items;
-    if (loadingPrompts) return loadingPrompts;
-    loadingPrompts = loadPrompts().finally(() => {
+async function getPromptCache(forceRefresh: boolean) {
+    const options = getPromptCacheOptions();
+    if (!forceRefresh && memoryCache && isPromptCacheFresh(memoryCache, options)) return { cache: memoryCache, source: "memory" as const };
+    const diskCache = readPromptCache(options);
+    if (!forceRefresh && diskCache && isPromptCacheFresh(diskCache, options)) {
+        memoryCache = diskCache;
+        return { cache: diskCache, source: "disk" as const };
+    }
+    if (loadingPrompts) return { cache: await loadingPrompts, source: "refresh" as const };
+    loadingPrompts = refreshPromptCache(diskCache || memoryCache).finally(() => {
         loadingPrompts = null;
     });
-    return loadingPrompts;
+    return { cache: await loadingPrompts, source: "refresh" as const };
 }
 
-async function loadPrompts() {
-    const settled = await Promise.all(
+async function refreshPromptCache(previous: PromptCacheFile | null) {
+    const sources = await Promise.all(
         categories.map(async (category) => {
             try {
                 const items = await category.build();
-                return items.map((item) => ({ ...item, category: category.category, githubUrl: category.githubUrl }));
-            } catch {
-                return [];
+                return { category: category.category, githubUrl: category.githubUrl, ok: true, items: items.map((item) => ({ ...item, category: category.category, githubUrl: category.githubUrl })) } satisfies PromptSourceLoadResult;
+            } catch (error) {
+                return { category: category.category, githubUrl: category.githubUrl, ok: false, items: [], error: error instanceof Error ? error.message : "加载失败" } satisfies PromptSourceLoadResult;
             }
         }),
     );
-    const items = settled.flat();
-    memoryCache = { items, fetchedAt: Date.now() };
-    return items;
-}
-
-function filterPrompts(items: Prompt[], options: { keyword: string; category: string; tags: string[] }) {
-    return items.filter((item) => {
-        if (isActiveOption(options.category) && item.category !== options.category) return false;
-        if (options.tags.length && !options.tags.some((tag) => item.tags.includes(tag))) return false;
-        if (!options.keyword) return true;
-        return [item.title, item.prompt, item.category, ...item.tags].join(" ").toLowerCase().includes(options.keyword);
-    });
+    const cache = mergePromptCache(previous, sources);
+    memoryCache = cache;
+    writePromptCache(cache);
+    return cache;
 }
 
 async function buildAwesomeGptImagePrompts() {
@@ -366,27 +359,6 @@ function markdownPreview(images: string[]) {
     return images.filter(Boolean).map((image) => `![](${image})`).join("\n\n");
 }
 
-function collectTags(items: Prompt[]) {
-    return Array.from(new Set(items.flatMap((item) => item.tags).filter(Boolean)));
-}
-
-function hasChinesePromptText(item: Prompt) {
-    return /[\u4e00-\u9fff]/u.test(`${item.title}\n${item.prompt}\n${item.preview}`);
-}
-
-function shufflePrompts(items: Prompt[]) {
-    const next = [...items];
-    for (let index = next.length - 1; index > 0; index--) {
-        const target = Math.floor(Math.random() * (index + 1));
-        [next[index], next[target]] = [next[target], next[index]];
-    }
-    return next;
-}
-
 function leftPad(value: number) {
     return String(value).padStart(4, "0");
-}
-
-function isActiveOption(value: string) {
-    return value && value !== "全部" && value !== "all";
 }

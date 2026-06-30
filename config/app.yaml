@@ -25,3 +25,11 @@ auth:
 
 
 
+prompts:
+  cache:
+    # 是否启用第三方提示词库全量磁盘缓存；开启后首次刷新会写入 data/prompts-cache.json。
+    enabled: true
+    # 全量缓存文件路径；保存解析后的提示词文本、标签、封面链接和来源信息，不缓存远程图片文件。
+    path: data/prompts-cache.json
+    # 缓存有效期，单位秒；过期后访问提示词库会自动做一次增量刷新。
+    ttl_seconds: 3600
