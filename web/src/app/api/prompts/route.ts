@@ -53,18 +53,25 @@ export async function GET(request: NextRequest) {
     const category = params.get("category") || "";
     const page = Math.max(1, Number(params.get("page")) || 1);
     const pageSize = Math.max(1, Math.min(100, Number(params.get("pageSize")) || 20));
+    const random = params.get("random") === "1";
+    const coverOnly = params.get("coverOnly") === "1";
+    const language = params.get("language") || "";
     const items = await getPrompts();
     const withoutTagFilter = filterPrompts(items, { keyword, category, tags: [] });
     const filtered = filterPrompts(items, { keyword, category, tags });
+    const languageItems = language === "zh" ? filtered.filter(hasChinesePromptText) : filtered;
+    const visibleItems = coverOnly ? languageItems.filter((item) => item.coverUrl) : languageItems;
+    const pageItems = random ? shufflePrompts(visibleItems).slice(0, pageSize) : visibleItems.slice((page - 1) * pageSize, page * pageSize);
 
     return Response.json({
-        items: filtered.slice((page - 1) * pageSize, page * pageSize),
+        items: pageItems,
         tags: collectTags(withoutTagFilter),
         categories: categories.map((item) => item.category),
         fetchedAt: memoryCache?.fetchedAt || Date.now(),
         sourceCount: categories.length,
-        total: filtered.length,
+        total: visibleItems.length,
         totalAll: items.length,
+        totalChinese: items.filter(hasChinesePromptText).length,
     });
 }
 
@@ -361,6 +368,19 @@ function markdownPreview(images: string[]) {
 
 function collectTags(items: Prompt[]) {
     return Array.from(new Set(items.flatMap((item) => item.tags).filter(Boolean)));
+}
+
+function hasChinesePromptText(item: Prompt) {
+    return /[\u4e00-\u9fff]/u.test(`${item.title}\n${item.prompt}\n${item.preview}`);
+}
+
+function shufflePrompts(items: Prompt[]) {
+    const next = [...items];
+    for (let index = next.length - 1; index > 0; index--) {
+        const target = Math.floor(Math.random() * (index + 1));
+        [next[index], next[target]] = [next[target], next[index]];
+    }
+    return next;
 }
 
 function leftPad(value: number) {

@@ -1,12 +1,16 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { ArrowRight, Copy, FilePlus2, RefreshCw } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { App, Button, Image, Tag } from "antd";
 
-import { fetchPrompts, type Prompt } from "@/services/api/prompts";
+import { fetchPrompts, formatPromptDateTime, type Prompt } from "@/services/api/prompts";
 import { navigationTools } from "@/constant/navigation-tools";
+import { useCopyText } from "@/hooks/use-copy-text";
 import { cn } from "@/lib/utils";
+import { useCanvasStore } from "./canvas/stores/use-canvas-store";
+import { CanvasNodeType } from "./canvas/types";
 
 function Highlighter({ action, color, children }: { action: "highlight" | "underline"; color: string; children: ReactNode }) {
     return (
@@ -23,16 +27,63 @@ function Highlighter({ action, color, children }: { action: "highlight" | "under
 
 export default function IndexPage() {
     const { message } = App.useApp();
+    const router = useRouter();
+    const copyText = useCopyText();
     const [primaryTool] = navigationTools;
     const [promptShowcase, setPromptShowcase] = useState<Prompt[]>([]);
+    const [promptShowcaseLoading, setPromptShowcaseLoading] = useState(false);
+    const [promptTotal, setPromptTotal] = useState(0);
+    const [promptChineseTotal, setPromptChineseTotal] = useState(0);
+    const [promptScope, setPromptScope] = useState<"all" | "zh">("all");
     const [previewIndex, setPreviewIndex] = useState(0);
     const [previewOpen, setPreviewOpen] = useState(false);
+    const canvasHydrated = useCanvasStore((state) => state.hydrated);
+    const importProject = useCanvasStore((state) => state.importProject);
+
+    const refreshPromptShowcase = useCallback((scope: "all" | "zh" = promptScope) => {
+        setPromptShowcaseLoading(true);
+        void fetchPrompts({ pageSize: 12, random: true, coverOnly: true, language: scope === "zh" ? "zh" : undefined })
+            .then((data) => {
+                setPromptShowcase(data.items);
+                setPromptTotal(data.totalAll);
+                setPromptChineseTotal(data.totalChinese);
+            })
+            .catch((error) => message.error(error instanceof Error ? error.message : "获取提示词失败"))
+            .finally(() => setPromptShowcaseLoading(false));
+    }, [message, promptScope]);
 
     useEffect(() => {
-        void fetchPrompts({ pageSize: 60 })
-            .then((data) => setPromptShowcase(data.items.filter((item) => item.coverUrl).slice(0, 12)))
-            .catch((error) => message.error(error instanceof Error ? error.message : "获取提示词失败"));
-    }, [message]);
+        refreshPromptShowcase();
+    }, [refreshPromptShowcase]);
+
+    const importPromptToCanvas = (item: Prompt) => {
+        const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const imageNodeId = `image-${suffix}`;
+        const configNodeId = `config-${suffix}`;
+        const nodes = [
+            {
+                id: imageNodeId,
+                type: CanvasNodeType.Image,
+                title: item.title,
+                position: { x: 80, y: 120 },
+                width: 360,
+                height: 260,
+                metadata: { content: item.coverUrl, prompt: item.prompt, status: "success" as const },
+            },
+            {
+                id: configNodeId,
+                type: CanvasNodeType.Config,
+                title: "灵机一动",
+                position: { x: 500, y: 120 },
+                width: 360,
+                height: 260,
+                metadata: { content: "", composerContent: item.prompt, prompt: item.prompt, status: "idle" as const, generationMode: "image" as const },
+            },
+        ];
+        const id = importProject({ title: `灵机一动 - ${item.title.slice(0, 18)}`, nodes, connections: [] });
+        message.success("已导入画布");
+        router.push(`/canvas/${id}`);
+    };
 
     return (
         <main className="relative h-full overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-stone-950 dark:bg-[radial-gradient(rgba(245,245,244,.18)_1px,transparent_1px)] dark:text-stone-100">
@@ -65,21 +116,67 @@ export default function IndexPage() {
 
                 <section className="relative mx-auto mb-20 max-w-6xl border-t border-stone-200 pt-12 dark:border-stone-800">
                     <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
-                        <div />
-                        <div className="max-w-2xl text-center">
-                            <h2 className="text-3xl font-semibold text-stone-950 dark:text-stone-100">沉淀每一次好结果</h2>
-                            <p className="mt-3 text-base leading-7 text-stone-500 dark:text-stone-400">收藏稳定出图的提示词、参考风格和结果图片，让下一次创作从已有经验开始。</p>
+                        <div className="flex justify-center md:justify-start">
+                            <div className="flex shrink-0 flex-wrap items-center justify-center gap-1 rounded-full border border-stone-200/80 bg-white/70 p-1 shadow-sm shadow-stone-950/[0.03] backdrop-blur dark:border-white/10 dark:bg-white/[0.04]">
+                                {(["all", "zh"] as const).map((scope) => (
+                                    <button
+                                        key={scope}
+                                        type="button"
+                                        disabled={promptShowcaseLoading}
+                                        onClick={() => {
+                                            setPromptScope(scope);
+                                            refreshPromptShowcase(scope);
+                                        }}
+                                        className={cn(
+                                            "h-8 rounded-full border border-transparent px-3 text-xs font-medium transition",
+                                            promptScope === scope ? "border-amber-200/80 bg-amber-50 text-amber-800 shadow-sm shadow-amber-900/5 dark:border-amber-300/25 dark:bg-amber-300/15 dark:text-amber-100" : "text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-stone-100",
+                                        )}
+                                    >
+                                        {scope === "all" ? "全部" : "中文"}
+                                    </button>
+                                ))}
+                                <span className="mx-1 h-4 w-px bg-stone-200 dark:bg-white/10" />
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={<RefreshCw className={cn("size-3.5", promptShowcaseLoading && "animate-spin")} />}
+                                    disabled={promptShowcaseLoading}
+                                    onClick={() => refreshPromptShowcase()}
+                                    className="!h-8 !rounded-full !px-3 !text-xs !text-stone-600 hover:!bg-stone-100 dark:!text-stone-300 dark:hover:!bg-white/10"
+                                >
+                                    换一批
+                                </Button>
+                            </div>
                         </div>
-                        <Button type="link" href="/prompts" className="justify-self-center md:justify-self-end" icon={<ArrowRight className="size-4" />} iconPlacement="end">
-                            查看提示词库
-                        </Button>
+                        <div className="max-w-2xl text-center">
+                            <div className="flex flex-wrap items-center justify-center gap-3">
+                                <h2 className="text-3xl font-semibold text-stone-950 dark:text-stone-100">灵机一动</h2>
+                            </div>
+                            <p className="mt-3 text-base leading-7 text-stone-500 dark:text-stone-400">每次刷新页面，都会遇见新的视觉灵感。</p>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 md:items-end">
+                            <Button type="link" href="/prompts" className="justify-self-center md:justify-self-end" icon={<ArrowRight className="size-4" />} iconPlacement="end">
+                                查看提示词库
+                            </Button>
+                            <p className="text-sm text-stone-400 dark:text-stone-500">
+                                当前提示词总量：{promptTotal}
+                                {promptChineseTotal ? `，中文：${promptChineseTotal}` : ""}
+                            </p>
+                        </div>
                     </div>
                     <div className="grid auto-rows-[210px] gap-4 md:grid-cols-4">
                         {promptShowcase.map((item, index) => (
-                            <button
+                            <div
                                 key={item.id}
-                                type="button"
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => {
+                                    setPreviewIndex(index);
+                                    setPreviewOpen(true);
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key !== "Enter" && event.key !== " ") return;
+                                    event.preventDefault();
                                     setPreviewIndex(index);
                                     setPreviewOpen(true);
                                 }}
@@ -90,7 +187,47 @@ export default function IndexPage() {
                                 )}
                             >
                                 <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent p-4 text-white">
+                                <div className="pointer-events-none absolute left-3 top-3 flex max-w-[calc(100%-9rem)] flex-wrap gap-1.5">
+                                    {item.tags.slice(0, 2).map((tag) => (
+                                        <Tag key={tag} variant="filled" className="m-0 rounded-md border-0 bg-black/45 text-[11px] text-white shadow-sm backdrop-blur">
+                                            {tag}
+                                        </Tag>
+                                    ))}
+                                </div>
+                                <div className="absolute right-3 top-3 flex gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                                    <Button
+                                        size="small"
+                                        type="text"
+                                        title="复制提示词"
+                                        icon={<Copy className="size-3.5" />}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            copyText(item.prompt, "提示词已复制");
+                                        }}
+                                        className="!h-7 !rounded-full !border !border-white/15 !bg-black/45 !px-2 !text-xs !text-white !backdrop-blur hover:!bg-black/60"
+                                    >
+                                        复制
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        type="text"
+                                        title="导入画布"
+                                        disabled={!canvasHydrated}
+                                        icon={<FilePlus2 className="size-3.5" />}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            importPromptToCanvas(item);
+                                        }}
+                                        className="!h-7 !rounded-full !border !border-white/15 !bg-white/90 !px-2 !text-xs !text-stone-900 !backdrop-blur hover:!bg-white"
+                                    >
+                                        导入
+                                    </Button>
+                                </div>
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent px-4 pb-4 pt-14 text-white">
+                                    <h3 className="line-clamp-2 text-sm font-medium leading-5 drop-shadow">{item.title}</h3>
+                                    <div className="mt-2 h-px w-10 bg-white/45 opacity-0 transition group-hover:opacity-100" />
+                                </div>
+                                <div className="sr-only">
                                     <div className="mb-2 flex flex-wrap gap-1.5">
                                         {item.tags.slice(0, 2).map((tag) => (
                                             <Tag key={tag} variant="filled" className="m-0 bg-white/15 text-[11px] text-white backdrop-blur">
@@ -101,7 +238,7 @@ export default function IndexPage() {
                                     <h3 className="text-sm font-medium">{item.title}</h3>
                                     <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/75">{item.prompt}</p>
                                 </div>
-                            </button>
+                            </div>
                         ))}
                     </div>
                 </section>

@@ -337,3 +337,100 @@
   - `progress.md`：追加本轮实现和验证记录。
 - Existing pre-task changes left untouched: 端口、Base URL、模型列表、图片生成代理和默认模型相关既有未提交改动未回滚。
 - Rollback: 可执行 `git checkout -- web/src/app/api/prompts/route.ts web/src/components/prompts/prompt-card.tsx web/src/components/prompts/prompt-detail-dialog.tsx docs/content/docs/progress/pending-test.mdx progress.md` 并删除 `web/src/components/prompts/prompt-image.tsx` 回退本轮图片显示修复；如需保留历史进度记录，请只回退代码和待测文件。
+
+## 2026-07-01 - Task: 首页提示词随机展示
+### What was done
+- 首页“沉淀每一次好结果”改为每次刷新随机展示 12 条有封面的提示词。
+- 首页随机展示区域标题改为“灵机一动”，副标题改为“每次刷新页面，都会遇见新的视觉灵感。”。
+- 首页随机展示卡片移除图片上的提示词正文遮罩，只保留顶部轻量标签和底部标题，减少对图片主体的遮挡。
+- “灵机一动”标题旁新增“换一批”按钮，点击后不刷新整页，直接重新随机加载示例图。
+- “灵机一动”每张卡片新增“复制”和“导入”动作；复制提示词后给出成功提示，导入会新建画布并放入示例图节点和已填提示词的配置节点。
+- “灵机一动”标题旁新增“中文”按钮，点击后只在包含中文的提示词中随机换图。
+- 首页“当前提示词总量”后追加中文提示词总量，复用 `/api/prompts` 返回的 `totalChinese`。
+- “灵机一动”的“全部/中文”改为范围切换胶囊，“换一批”作为独立动作放在同一控制条中，避免按钮堆在标题旁。
+- `/api/prompts` 新增随机返回和仅有封面过滤参数，供首页使用，不影响提示词库正常分页浏览。
+- `/api/prompts` 新增 `language=zh` 查询参数，用于过滤标题、提示词或预览内容包含中文的提示词。
+- `/api/prompts` 新增 `totalChinese` 返回字段，表示全量提示词中包含中文字符的数量。
+
+### Testing
+- `cd web && bun run build`：通过，Next.js 生产构建成功；本轮文案、遮挡修复、“换一批”按钮、卡片复制/导入动作和控制条布局调整后均再次构建通过。
+- 重启 30026 端口服务后，注册临时账号验证 `/api/prompts?pageSize=12&random=1&coverOnly=1&language=zh`：返回 12 条，其中 12 条均包含中文；临时账号已清理。
+- 重启 30026 端口服务后，注册临时账号验证 `/api/prompts?pageSize=1&random=1&coverOnly=1`：返回 `totalAll=15302`、`totalChinese=1210`；临时账号已清理。
+- 重启 30026 端口服务后，注册临时账号连续请求两次 `/api/prompts?pageSize=12&random=1&coverOnly=1`：两次返回的 12 条 ID 不相同，且空封面数量为 0；临时账号已清理。
+- `/api/auth/session` 返回 200，确认当前服务运行在 `http://127.0.0.1:30026`。
+
+### Notes
+- Changed files:
+  - `web/src/app/api/prompts/route.ts`：新增 `random=1` 和 `coverOnly=1` 查询参数处理。
+  - `web/src/app/api/prompts/route.ts`：新增 `language=zh` 查询参数处理。
+  - `web/src/app/api/prompts/route.ts`：新增 `totalChinese` 返回字段。
+  - `web/src/services/api/prompts.ts`：请求参数类型新增随机、仅封面、中文过滤开关和中文总量字段。
+  - `web/src/app/(user)/page.tsx`：首页展示改为请求随机有封面提示词，并更新区域标题、副标题、卡片遮罩布局、主动刷新按钮、范围切换控制条、中文总量、复制提示词和导入画布动作。
+  - `docs/content/docs/progress/pending-test.mdx`：记录本轮首页随机展示待人工确认事项。
+  - `progress.md`：追加本轮实现和验证记录。
+- Existing pre-task changes left untouched: 端口、Base URL、模型列表、图片生成代理和提示词图片修复相关既有未提交改动未回滚。
+- Rollback: 可执行 `git checkout -- web/src/app/api/prompts/route.ts web/src/services/api/prompts.ts web/src/app/(user)/page.tsx docs/content/docs/progress/pending-test.mdx progress.md` 回退本轮首页随机展示；如需保留历史进度记录，请只回退代码和待测文件。
+
+## 2026-07-01 - Task: 提示词库增加中文筛选
+### What was done
+- 提示词库筛选区新增“中文”开关。
+- 打开“中文”后，请求会携带 `language=zh`，只展示标题、提示词或预览内容包含中文字符的提示词。
+- 中文筛选会与现有关键词、分类、标签和滚动分页一起生效。
+
+### Testing
+- `cd web && bun run build`：通过，Next.js 生产构建成功。
+- 重启 30026 端口服务后，注册临时账号验证 `/api/prompts?pageSize=20&language=zh`：返回 20 条，其中 20 条均包含中文；临时账号已清理。
+- `/api/auth/session` 返回 200，确认当前服务运行在 `http://127.0.0.1:30026`。
+
+### Notes
+- Changed files:
+  - `web/src/components/prompts/use-prompt-list.ts`：提示词列表查询支持中文过滤参数，并加入查询缓存 key。
+  - `web/src/app/(user)/prompts/page.tsx`：筛选区新增“中文”开关并传入列表查询。
+  - `docs/content/docs/progress/pending-test.mdx`：记录本轮提示词库中文筛选待人工确认事项。
+  - `progress.md`：追加本轮实现和验证记录。
+- Existing pre-task changes left untouched: 首页随机展示、复制/导入画布、Base URL、模型列表和图片生成代理相关既有未提交改动未回滚。
+- Rollback: 可执行 `git checkout -- web/src/components/prompts/use-prompt-list.ts web/src/app/(user)/prompts/page.tsx docs/content/docs/progress/pending-test.mdx progress.md` 回退本轮提示词库中文筛选；如需保留历史进度记录，请只回退代码和待测文件。
+
+## 2026-07-01 - Task: 优化灵机一动控制条选中态
+### What was done
+- 将首页“灵机一动”的“全部/中文”选中态由纯黑底改为浅暖色选中态，降低视觉重量并提升文字可读性。
+
+### Testing
+- `cd web && bun run build`：通过，Next.js 生产构建成功。
+- 重启 30026 端口服务后，`/api/auth/session` 返回 200，确认当前服务运行在 `http://127.0.0.1:30026`。
+
+### Notes
+- Changed files:
+  - `web/src/app/(user)/page.tsx`：调整“灵机一动”范围切换按钮选中态样式。
+  - `docs/content/docs/progress/pending-test.mdx`：记录本轮首页控制条视觉优化待人工确认事项。
+  - `progress.md`：追加本轮实现和验证记录。
+- Existing pre-task changes left untouched: 首页随机展示、中文筛选、复制/导入画布、Base URL、模型列表和图片生成代理相关既有未提交改动未回滚。
+- Rollback: 可执行 `git checkout -- web/src/app/(user)/page.tsx docs/content/docs/progress/pending-test.mdx progress.md` 回退本轮首页控制条选中态优化；如需保留历史进度记录，请只回退代码和待测文件。
+## 2026-07-01 - Task: ???????????
+### What was done
+- ?????????????/??/???????????????????????????????
+
+### Testing
+- `cd web && bun run build`????Next.js ???????
+
+### Notes
+- Changed files:
+  - `web/src/app/(user)/page.tsx`??????????????????
+  - `docs/content/docs/progress/pending-test.mdx`??????????????????????
+  - `progress.md`?????????????
+- Existing pre-task changes left untouched: ??????????????/?????Base URL?????????????????????????
+- Rollback: ??? `git checkout -- web/src/app/(user)/page.tsx docs/content/docs/progress/pending-test.mdx progress.md` ?????????????????????????????????????
+## 2026-07-01 - Task: ????????????
+### What was done
+- ?????????????/??/????????????????????????????????????????
+
+### Testing
+- `cd web && bun run build`????Next.js ???????
+
+### Notes
+- Changed files:
+  - `web/src/app/(user)/page.tsx`??????????????????????????
+  - `docs/content/docs/progress/pending-test.mdx`??????????????????????
+  - `progress.md`?????????????
+- Existing pre-task changes left untouched: ??????????????/?????Base URL?????????????????????????
+- Rollback: ??? `git checkout -- web/src/app/(user)/page.tsx docs/content/docs/progress/pending-test.mdx progress.md` ?????????????????????????????????????

@@ -73,7 +73,9 @@ docker run --rm -p 30026:30026 bmcca-canvas
 ### 提示词库扩展
 
 - 新增 `songtianlun/awesome-prompts` 数据源（138 条带图案例，涵盖 gpt-image-1 和 gpt-4o）。
-- 当前共聚合 7 个 GitHub 开源提示词仓库。
+- 新增 `ai-image-prompts-skill` 数据源，提示词总量扩展至 15000+ 条。
+- 首页"查看提示词库"按钮下方实时显示当前提示词总量和更新时间。
+- 当前共聚合 8 个 GitHub 开源提示词仓库。
 
 ### Bug 修复
 

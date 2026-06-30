@@ -17,10 +17,11 @@ export default function PromptsPage() {
     const [titleKeyword, setTitleKeyword] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState(ALL_PROMPTS_OPTION);
+    const [chineseOnly, setChineseOnly] = useState(false);
     const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
     const addAsset = useAssetStore((state) => state.addAsset);
     const copyText = useCopyText();
-    const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, fetchedAt, sourceCount, total: totalPrompts, totalAll: allPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory });
+    const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, fetchedAt, sourceCount, total: totalPrompts, totalAll: allPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory, language: chineseOnly ? "zh" : undefined });
 
     useEffect(() => {
         if (query.isError) {
@@ -82,6 +83,14 @@ export default function PromptsPage() {
                                 <Input size="large" className="w-full" prefix={<Search className="size-4 text-stone-400" />} value={titleKeyword} placeholder="按标题查询" onChange={(event) => setTitleKeyword(event.target.value)} />
                             </div>
                             <div className="mx-auto mt-6 grid max-w-6xl gap-3 text-left">
+                                <div className="grid gap-2 sm:grid-cols-[56px_minmax(0,1fr)] sm:items-start">
+                                    <div className="pt-2 text-xs font-medium text-stone-500 dark:text-stone-400">语言</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Tag.CheckableTag checked={chineseOnly} className={cn("prompt-filter-tag", chineseOnly && "is-active")} onChange={() => setChineseOnly((value) => !value)}>
+                                            中文
+                                        </Tag.CheckableTag>
+                                    </div>
+                                </div>
                                 <div className="grid gap-2 sm:grid-cols-[56px_minmax(0,1fr)] sm:items-start">
                                     <div className="pt-2 text-xs font-medium text-stone-500 dark:text-stone-400">分类</div>
                                     <div className="flex flex-wrap gap-2">
